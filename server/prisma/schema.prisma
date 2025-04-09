@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String   @id @default(cuid())
+  name     String
+  email    String   @unique
+  password String
+  role     String   // 'admin' | 'staff'
+}
+
+model Supplier {
+  id      String    @id @default(cuid())
+  name    String
+  phone   String?
+  address String?
+  purchases Purchase[]
+  payments  Payment[]
+}
+
+model Customer {
+  id       String    @id @default(cuid())
+  name     String
+  phone    String?
+  address  String?
+  sales    Sale[]
+  receipts Receipt[]
+}
+
+model Item {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  unit         String
+  basePrice    Float
+  currentStock Int
+  purchaseItems PurchaseItem[]
+  saleItems     SaleItem[]
+  stockTransactions StockTransaction[]
+}
+
+model Purchase {
+  id          String         @id @default(cuid())
+  supplier    Supplier       @relation(fields: [supplierId], references: [id])
+  supplierId  String
+  date        DateTime
+  totalAmount Float
+  paidAmount  Float
+  status      String         // 'recorded', 'paid', etc.
+  items       PurchaseItem[]
+}
+
+model PurchaseItem {
+  id          String   @id @default(cuid())
+  purchase    Purchase @relation(fields: [purchaseId], references: [id])
+  purchaseId  String
+  item        Item     @relation(fields: [itemId], references: [id])
+  itemId      String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+}
+
+model Sale {
+  id            String     @id @default(cuid())
+  customer      Customer   @relation(fields: [customerId], references: [id])
+  customerId    String
+  date          DateTime
+  totalAmount   Float
+  receivedAmount Float
+  status        String     // 'recorded', 'paid', etc.
+  items         SaleItem[]
+}
+
+model SaleItem {
+  id        String @id @default(cuid())
+  sale      Sale   @relation(fields: [saleId], references: [id])
+  saleId    String
+  item      Item   @relation(fields: [itemId], references: [id])
+  itemId    String
+  quantity  Int
+  unitPrice Float
+  totalPrice Float
+}
+
+model Payment {
+  id         String    @id @default(cuid())
+  supplier   Supplier  @relation(fields: [supplierId], references: [id])
+  supplierId String
+  amount     Float
+  method     String    // 'cash', 'account'
+  account    Account?  @relation(fields: [accountId], references: [id])
+  accountId  String?
+  date       DateTime
+  note       String?
+}
+
+model Receipt {
+  id         String    @id @default(cuid())
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  customerId String
+  amount     Float
+  method     String    // 'cash', 'account'
+  account    Account?  @relation(fields: [accountId], references: [id])
+  accountId  String?
+  date       DateTime
+  note       String?
+}
+
+model Account {
+  id            String      @id @default(cuid())
+  bankName      String
+  accountNumber String
+  accountHolder String
+  balance       Float
+  payments      Payment[]
+  receipts      Receipt[]
+}
+
+model StockTransaction {
+  id         String   @id @default(cuid())
+  item       Item     @relation(fields: [itemId], references: [id])
+  itemId     String
+  type       String   // 'purchase', 'sale', 'adjustment'
+  quantity   Int
+  relatedId  String?  // Optional link to Purchase/Sale
+  date       DateTime @default(now())
+}
+
+model ReportDownload {
+  id          String   @id @default(cuid())
+  type        String   // e.g., 'purchase', 'sale'
+  date        DateTime
+  downloadedAt DateTime @default(now())
+}
