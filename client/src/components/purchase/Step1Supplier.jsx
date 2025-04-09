@@ -5,7 +5,7 @@ import { api, API_PATHS } from '../../api';
 // Adjust path if needed
 import SearchableSelect from './ui/SearchableSelect';
 import debounce from 'lodash.debounce';
-
+import LangInput from '../LangInput'; // Adjust path if needed
 function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -114,12 +114,13 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
           {createError && <p className="text-red-600 text-sm">Error: {createError.response?.data?.message || createError.message}</p>}
           <div>
             <label htmlFor="newSupplierName" className="block text-sm font-medium text-gray-700">Name *</label>
-            <input
+            <LangInput
               type="text"
               id="newSupplierName"
               value={newSupplierName}
-              onChange={(e) => setNewSupplierName(e.target.value)}
-              required
+              onChange={ setNewSupplierName}
+              isRequired={true}
+              placeholder="Supplier Name"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>

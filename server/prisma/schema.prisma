@@ -53,6 +53,7 @@ model Item {
 
 model Purchase {
   id          String         @id @default(cuid())
+  invoiceNo   String         @unique
   supplier    Supplier       @relation(fields: [supplierId], references: [id])
   supplierId  String
   date        DateTime

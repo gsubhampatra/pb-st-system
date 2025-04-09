@@ -13,7 +13,7 @@ const PurchaseTable = () => {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [filters, setFilters] = useState({
         supplierId: '',
-        startDate: '',
+        startDate: format(new Date(), 'yyyy-MM-dd'),
         endDate: '',
         status: '',
         page: 1,
@@ -300,7 +300,7 @@ const PurchaseTable = () => {
 
             {/* Purchase Detail Modal */}
             {isDetailOpen && selectedPurchase && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="fixed inset-0 bg-transparent backdrop-blur-2xl flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-4">
