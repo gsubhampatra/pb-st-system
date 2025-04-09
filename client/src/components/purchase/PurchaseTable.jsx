@@ -70,7 +70,6 @@ const PurchaseTable = () => {
         <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Purchase Management</h1>
-
             </div>
 
             {/* Filter Section */}
@@ -144,86 +143,89 @@ const PurchaseTable = () => {
             {/* Purchase Table */}
             {!isLoading && !isError && (
                 <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {purchasesData.data.map((purchase) => (
-                                <tr key={purchase.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {format(new Date(purchase.date), 'MMM dd, yyyy')}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {purchase.supplier?.name || 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {purchase._count?.items || 0}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        ${purchase.totalAmount.toFixed(2)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        ${purchase.paidAmount.toFixed(2)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${purchase.status === 'paid' ? 'bg-green-100 text-green-800' :
+                    <div className="overflow-x-auto">
+
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {purchasesData.data.map((purchase) => (
+                                    <tr key={purchase.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {format(new Date(purchase.date), 'MMM dd, yyyy')}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {purchase.supplier?.name || 'N/A'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {purchase._count?.items || 0}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            ${purchase.totalAmount.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            ${purchase.paidAmount.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${purchase.status === 'paid' ? 'bg-green-100 text-green-800' :
                                                 purchase.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
                                                     purchase.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                                                         'bg-blue-100 text-blue-800'
-                                            }`}>
-                                            {purchase.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-2">
-                                        <button
-                                            onClick={() => handleViewDetail(purchase)}
-                                            className="text-blue-600 hover:text-blue-800"
-                                            title="View Details"
-                                        >
-                                            <FiEye />
-                                        </button>
-                                        <button
-                                            onClick={() => handlePrint(purchase)}
-                                            className="text-purple-600 hover:text-purple-800"
-                                            title="Print Bill"
-                                        >
-                                            <FiPrinter />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setSelectedPurchase(purchase);
-                                                setIsFormOpen(true);
-                                            }}
-                                            className="text-green-600 hover:text-green-800"
-                                            title="Edit"
-                                        >
-                                            <FiEdit />
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                if (window.confirm('Are you sure you want to delete this purchase?')) {
-                                                    deletePurchase.mutate(purchase.id);
-                                                }
-                                            }}
-                                            className="text-red-600 hover:text-red-800"
-                                            title="Delete"
-                                        >
-                                            <FiTrash2 />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                                                }`}>
+                                                {purchase.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-2">
+                                            <button
+                                                onClick={() => handleViewDetail(purchase)}
+                                                className="text-blue-600 hover:text-blue-800"
+                                                title="View Details"
+                                            >
+                                                <FiEye />
+                                            </button>
+                                            <button
+                                                onClick={() => handlePrint(purchase)}
+                                                className="text-purple-600 hover:text-purple-800"
+                                                title="Print Bill"
+                                            >
+                                                <FiPrinter />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedPurchase(purchase);
+                                                    setIsFormOpen(true);
+                                                }}
+                                                className="text-green-600 hover:text-green-800"
+                                                title="Edit"
+                                            >
+                                                <FiEdit />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm('Are you sure you want to delete this purchase?')) {
+                                                        deletePurchase.mutate(purchase.id);
+                                                    }
+                                                }}
+                                                className="text-red-600 hover:text-red-800"
+                                                title="Delete"
+                                            >
+                                                <FiTrash2 />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                     {purchasesData.data.length === 0 && (
                         <div className="text-center py-8 text-gray-500">No purchases found</div>
                     )}
@@ -257,8 +259,8 @@ const PurchaseTable = () => {
                                     key={pageNum}
                                     onClick={() => handlePageChange(pageNum)}
                                     className={`px-3 py-2 border-t border-b border-gray-300 bg-white text-sm font-medium ${filters.page === pageNum
-                                            ? 'bg-blue-50 text-blue-600 border-blue-500'
-                                            : 'text-gray-700 hover:bg-gray-50'
+                                        ? 'bg-blue-50 text-blue-600 border-blue-500'
+                                        : 'text-gray-700 hover:bg-gray-50'
                                         }`}
                                 >
                                     {pageNum}
