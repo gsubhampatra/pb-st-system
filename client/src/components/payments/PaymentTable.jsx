@@ -1,36 +1,38 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiEdit, FiTrash2, FiEye, FiPrinter, FiPlus, FiDownload } from 'react-icons/fi';
 import { useState } from 'react';
-import EditPurchaseForm from './EditPurchaseForm';
-import PurchaseDetail from './PurchaseDetail';
 import { format } from 'date-fns';
 import { api, API_PATHS } from '../../api';
 import * as XLSX from 'xlsx';
+import PaymentForm from './PaymentForm';
+import PaymentDetail from './PaymentDetail';
 
-const PurchaseTable = () => {
+const PaymentTable = () => {
     const queryClient = useQueryClient();
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [selectedPurchase, setSelectedPurchase] = useState(null);
+    const [selectedPayment, setSelectedPayment] = useState(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [filters, setFilters] = useState({
         supplierNameORPhone: '',
+        accountId: '',
+        method: '',
         startDate: format(new Date(), 'yyyy-MM-dd'),
         endDate: '',
-        status: '',
         page: 1,
         limit: 10
     });
 
-    // Fetch purchases with filtering and pagination
-    const { data: purchasesData, isLoading, isError } = useQuery({
-        queryKey: ['purchases', filters],
+    // Fetch payments with filtering and pagination
+    const { data: paymentsData, isLoading, isError } = useQuery({
+        queryKey: ['payments', filters],
         queryFn: async () => {
-            const response = await api.get(API_PATHS.purchases.getAll, {
+            const response = await api.get(API_PATHS.payments.getAll, {
                 params: {
                     supplierNameORPhone: filters.supplierNameORPhone || undefined,
+                    accountId: filters.accountId || undefined,
+                    method: filters.method || undefined,
                     startDate: filters.startDate || undefined,
                     endDate: filters.endDate || undefined,
-                    status: filters.status || undefined,
                     page: filters.page,
                     limit: filters.limit
                 }
@@ -39,29 +41,35 @@ const PurchaseTable = () => {
         }
     });
 
-    // Delete purchase mutation
-    const deletePurchase = useMutation({
-        mutationFn: (id) => api.delete(API_PATHS.purchases.delete(id)),
-        onSuccess: () => {
-            queryClient.invalidateQueries(['purchases']);
+    // Fetch accounts for filtering
+    const { data: accounts } = useQuery({
+        queryKey: ['accounts'],
+        queryFn: async () => {
+            const response = await api.get(API_PATHS.accounts.getAll);
+            return response.data.data;
         }
     });
 
-    const handleViewDetail = (purchase) => {
-        setSelectedPurchase(purchase);
-        setIsDetailOpen(true);
-    };
+    // Delete payment mutation
+    const deletePayment = useMutation({
+        mutationFn: (id) => api.delete(API_PATHS.payments.delete(id)),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['payments']);
+            queryClient.invalidateQueries(['accounts']); // Refresh accounts as balance might change
+        }
+    });
 
-    const handlePrint = (purchase) => {
-        setSelectedPurchase(purchase);
-        // This will open the detail modal which has print functionality
+    const handleViewDetail = (payment) => {
+        setSelectedPayment(payment);
         setIsDetailOpen(true);
     };
 
     const handleExportToExcel = () => {
-        const worksheet = XLSX.utils.json_to_sheet(purchasesData.data);
+        if (!paymentsData?.data) return;
+        
+        const worksheet = XLSX.utils.json_to_sheet(paymentsData.data);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchases');
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Payments');
         
         // Generate filename with date and time
         const now = new Date();
@@ -69,14 +77,11 @@ const PurchaseTable = () => {
         const timeStr = format(now, 'HH-mm-ss');
         
         // Add filter information to filename
-        let filename = `Purchases_${dateStr}_${timeStr}`;
+        let filename = `Payments_${dateStr}_${timeStr}`;
         
         // Add supplier name if filtered
         if (filters.supplierNameORPhone) {
-            const supplierName = purchasesData.data.length > 0 && purchasesData.data[0].supplier ? 
-                `_${purchasesData.data[0].supplier.name.replace(/\s+/g, '-')}` : 
-                `_Supplier-${filters.supplierNameORPhone}`;
-            filename += supplierName;
+            filename += `_Supplier-${filters.supplierNameORPhone}`;
         }
         
         // Add date range if specified
@@ -87,29 +92,28 @@ const PurchaseTable = () => {
             filename += `_to-${filters.endDate}`;
         }
         
-        // Add status if filtered
-        if (filters.status) {
-            filename += `_${filters.status}`;
+        // Add method if filtered
+        if (filters.method) {
+            filename += `_${filters.method}`;
         }
         
-        // Add item count, total and paid amounts summary
-        const totalItems = purchasesData.data.reduce((sum, purchase) => sum + (purchase._count?.items || 0), 0);
-        const totalAmount = purchasesData.data.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
-        const paidAmount = purchasesData.data.reduce((sum, purchase) => sum + purchase.paidAmount, 0);
-        
+        // Add column widths
         worksheet['!cols'] = [
             { wch: 15 }, // Date
             { wch: 25 }, // Supplier
-            { wch: 10 }, // Items
-            { wch: 15 }, // Total
-            { wch: 15 }, // Paid
+            { wch: 15 }, // Amount
+            { wch: 15 }, // Method
+            { wch: 25 }, // Account
+            { wch: 20 }, // Note
             { wch: 15 }  // Status
         ];
         
         // Add summary row at the bottom
+        const totalAmount = paymentsData.data.reduce((sum, payment) => sum + payment.amount, 0);
+        
         XLSX.utils.sheet_add_aoa(worksheet, [
             ['', '', '', '', '', ''],
-            ['Summary:', '', `Items: ${totalItems}`, `Total: $${totalAmount.toFixed(2)}`, `Paid: $${paidAmount.toFixed(2)}`, '']
+            ['Summary:', '', `Total Paid: $${totalAmount.toFixed(2)}`, '', '', '']
         ], { origin: -1 });
         
         XLSX.writeFile(workbook, `${filename}.xlsx`);
@@ -117,7 +121,7 @@ const PurchaseTable = () => {
 
     const handleCloseForm = () => {
         setIsFormOpen(false);
-        setSelectedPurchase(null);
+        setSelectedPayment(null);
     };
 
     const handlePageChange = (newPage) => {
@@ -127,7 +131,7 @@ const PurchaseTable = () => {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">Purchase Management</h1>
+                <h1 className="text-2xl font-bold text-gray-800">Payment Management</h1>
                 <button
                     onClick={handleExportToExcel}
                     className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -145,7 +149,7 @@ const PurchaseTable = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
                         <input
                             type="text"
-                            placeholder="Supplier ID"
+                            placeholder="Supplier Name/Phone"
                             className="w-full p-2 border border-gray-300 rounded-md"
                             value={filters.supplierNameORPhone}
                             onChange={(e) => setFilters(prev => ({ ...prev, supplierNameORPhone: e.target.value }))}
@@ -170,103 +174,105 @@ const PurchaseTable = () => {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Method</label>
                         <select
                             className="w-full p-2 border border-gray-300 rounded-md"
-                            value={filters.status}
-                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                            value={filters.method}
+                            onChange={(e) => setFilters(prev => ({ ...prev, method: e.target.value }))}
                         >
-                            <option value="">All</option>
-                            <option value="recorded">Recorded</option>
-                            <option value="paid">Paid</option>
-                            <option value="partial">Partial</option>
-                            <option value="cancelled">Cancelled</option>
+                            <option value="">All Methods</option>
+                            <option value="cash">Cash</option>
+                            <option value="account">Bank Account</option>
                         </select>
                     </div>
-                </div>
-                <div className="flex justify-end mt-4">
-                    <button
-                        onClick={() => setFilters({
-                            supplierNameORPhone: '',
-                            startDate: '',
-                            endDate: '',
-                            status: '',
-                            page: 1,
-                            limit: 10
-                        })}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                        Reset Filters
-                    </button>
+                    {filters.method === 'account' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
+                            <select
+                                className="w-full p-2 border border-gray-300 rounded-md"
+                                value={filters.accountId}
+                                onChange={(e) => setFilters(prev => ({ ...prev, accountId: e.target.value }))}
+                            >
+                                <option value="">All Accounts</option>
+                                {accounts?.map(account => (
+                                    <option key={account.id} value={account.id}>
+                                        {account.bankName} - {account.accountNumber}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Loading and Error States */}
-            {isLoading && <div className="text-center py-8">Loading purchases...</div>}
-            {isError && <div className="text-center py-8 text-red-500">Error loading purchases</div>}
+            {/* Add New Payment Button */}
+            <div className="flex justify-end mb-6">
+                <button
+                    onClick={() => {
+                        setSelectedPayment(null);
+                        setIsFormOpen(true);
+                    }}
+                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                    <FiPlus className="mr-2" />
+                    Add New Payment
+                </button>
+            </div>
 
-            {/* Purchase Table */}
+            {/* Loading and Error States */}
+            {isLoading && <div className="text-center py-8">Loading payments...</div>}
+            {isError && <div className="text-center py-8 text-red-500">Error loading payments</div>}
+
+            {/* Payment Table */}
             {!isLoading && !isError && (
                 <div className="bg-white shadow-md rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
-
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {purchasesData.data.map((purchase) => (
-                                    <tr key={purchase.id} className="hover:bg-gray-50">
+                                {paymentsData?.data?.map((payment) => (
+                                    <tr key={payment.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {format(new Date(purchase.date), 'MMM dd, yyyy')}
+                                            {format(new Date(payment.date), 'MMM dd, yyyy')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {purchase.supplier?.name || 'N/A'}
+                                            {payment.supplier?.name || 'N/A'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
+                                            ${payment.amount.toFixed(2)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                                            {payment.method}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {purchase._count?.items || 0}
+                                            {payment.method === 'account' && payment.account 
+                                                ? `${payment.account.bankName} - {payment.account.accountNumber}` 
+                                                : 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            ${purchase.totalAmount.toFixed(2)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            ${purchase.paidAmount.toFixed(2)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${purchase.status === 'paid' ? 'bg-green-100 text-green-800' :
-                                                purchase.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
-                                                    purchase.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                                        'bg-blue-100 text-blue-800'
-                                                }`}>
-                                                {purchase.status}
-                                            </span>
+                                            {payment.note || 'No note'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-2">
                                             <button
-                                                onClick={() => handleViewDetail(purchase)}
+                                                onClick={() => handleViewDetail(payment)}
                                                 className="text-blue-600 hover:text-blue-800"
                                                 title="View Details"
                                             >
                                                 <FiEye />
                                             </button>
                                             <button
-                                                onClick={() => handlePrint(purchase)}
-                                                className="text-purple-600 hover:text-purple-800"
-                                                title="Print Bill"
-                                            >
-                                                <FiPrinter />
-                                            </button>
-                                            <button
                                                 onClick={() => {
-                                                    setSelectedPurchase(purchase);
+                                                    setSelectedPayment(payment);
                                                     setIsFormOpen(true);
                                                 }}
                                                 className="text-green-600 hover:text-green-800"
@@ -276,8 +282,8 @@ const PurchaseTable = () => {
                                             </button>
                                             <button
                                                 onClick={() => {
-                                                    if (window.confirm('Are you sure you want to delete this purchase?')) {
-                                                        deletePurchase.mutate(purchase.id);
+                                                    if (window.confirm('Are you sure you want to delete this payment? This will reverse any account balance changes.')) {
+                                                        deletePayment.mutate(payment.id);
                                                     }
                                                 }}
                                                 className="text-red-600 hover:text-red-800"
@@ -291,16 +297,16 @@ const PurchaseTable = () => {
                             </tbody>
                         </table>
                     </div>
-                    {purchasesData.data.length === 0 && (
-                        <div className="text-center py-8 text-gray-500">No purchases found</div>
+                    {paymentsData?.data?.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">No payments found</div>
                     )}
                 </div>
             )}
 
             {/* Pagination */}
-            {!isLoading && !isError && purchasesData?.pagination?.totalPages > 1 && (
+            {paymentsData?.pagination && paymentsData.pagination.totalPages > 1 && (
                 <div className="flex justify-center mt-6">
-                    <nav className="inline-flex rounded-md shadow">
+                    <nav className="flex">
                         <button
                             onClick={() => handlePageChange(filters.page - 1)}
                             disabled={filters.page === 1}
@@ -308,14 +314,13 @@ const PurchaseTable = () => {
                         >
                             Previous
                         </button>
-                        {Array.from({ length: Math.min(5, purchasesData.pagination.totalPages) }, (_, i) => {
+                        {[...Array(Math.min(5, paymentsData.pagination.totalPages))].map((_, i) => {
                             let pageNum;
-                            if (purchasesData.pagination.totalPages <= 5) {
+                            // Logic to decide which set of pages to show
+                            if (filters.page <= 3) {
                                 pageNum = i + 1;
-                            } else if (filters.page <= 3) {
-                                pageNum = i + 1;
-                            } else if (filters.page >= purchasesData.pagination.totalPages - 2) {
-                                pageNum = purchasesData.pagination.totalPages - 4 + i;
+                            } else if (filters.page >= paymentsData.pagination.totalPages - 2) {
+                                pageNum = paymentsData.pagination.totalPages - 4 + i;
                             } else {
                                 pageNum = filters.page - 2 + i;
                             }
@@ -323,10 +328,11 @@ const PurchaseTable = () => {
                                 <button
                                     key={pageNum}
                                     onClick={() => handlePageChange(pageNum)}
-                                    className={`px-3 py-2 border-t border-b border-gray-300 bg-white text-sm font-medium ${filters.page === pageNum
-                                        ? 'bg-blue-50 text-blue-600 border-blue-500'
-                                        : 'text-gray-700 hover:bg-gray-50'
-                                        }`}
+                                    className={`px-3 py-2 border border-gray-300 text-sm font-medium ${
+                                        pageNum === filters.page
+                                            ? 'bg-blue-50 text-blue-600'
+                                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                                    }`}
                                 >
                                     {pageNum}
                                 </button>
@@ -334,7 +340,7 @@ const PurchaseTable = () => {
                         })}
                         <button
                             onClick={() => handlePageChange(filters.page + 1)}
-                            disabled={filters.page === purchasesData.pagination.totalPages}
+                            disabled={filters.page === paymentsData.pagination.totalPages}
                             className="px-3 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                         >
                             Next
@@ -343,21 +349,21 @@ const PurchaseTable = () => {
                 </div>
             )}
 
-            {/* Purchase Form Modal */}
+            {/* Payment Form Modal */}
             {isFormOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-semibold">
-                                    {selectedPurchase ? 'Edit Purchase' : 'Add New Purchase'}
+                                    {selectedPayment ? 'Edit Payment' : 'Add New Payment'}
                                 </h2>
                                 <button onClick={handleCloseForm} className="text-gray-500 hover:text-gray-700">
                                     &times;
                                 </button>
                             </div>
-                            <EditPurchaseForm
-                                purchase={selectedPurchase}
+                            <PaymentForm
+                                payment={selectedPayment}
                                 onSuccess={handleCloseForm}
                             />
                         </div>
@@ -365,14 +371,14 @@ const PurchaseTable = () => {
                 </div>
             )}
 
-            {/* Purchase Detail Modal */}
-            {isDetailOpen && selectedPurchase && (
+            {/* Payment Detail Modal */}
+            {isDetailOpen && selectedPayment && (
                 <div className="fixed inset-0 bg-transparent backdrop-blur-2xl flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-semibold">
-                                    Purchase Details
+                                    Payment Details
                                 </h2>
                                 <button
                                     onClick={() => setIsDetailOpen(false)}
@@ -381,7 +387,7 @@ const PurchaseTable = () => {
                                     &times;
                                 </button>
                             </div>
-                            <PurchaseDetail purchaseId={selectedPurchase.id} />
+                            <PaymentDetail paymentId={selectedPayment.id} />
                         </div>
                     </div>
                 </div>
@@ -390,4 +396,4 @@ const PurchaseTable = () => {
     );
 };
 
-export default PurchaseTable;
+export default PaymentTable;

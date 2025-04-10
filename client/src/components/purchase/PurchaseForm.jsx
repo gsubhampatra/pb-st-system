@@ -1,4 +1,4 @@
-// src/components/purchase/PurchaseForm.jsx
+// src/features/purchase/PurchaseForm.jsx
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Step1Supplier from './Step1Supplier';

@@ -89,7 +89,7 @@ export const createReceipt = async (req, res) => {
 
 // --- Get All Receipts (with optional filtering/pagination) ---
 export const getReceipts = async (req, res) => {
-    const { customerId, accountId, method, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { customerId, accountId, method, startDate, endDate, customerNameOrPhone, page = 1, limit = 10 } = req.query;
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -100,6 +100,17 @@ export const getReceipts = async (req, res) => {
         if (customerId) whereClause.customerId = customerId;
         if (accountId) whereClause.accountId = accountId;
         if (method) whereClause.method = method;
+        
+        // Add customerNameOrPhone search filter
+        if (customerNameOrPhone) {
+            whereClause.customer = {
+                OR: [
+                    { name: { contains: customerNameOrPhone, mode: 'insensitive' } },
+                    { phone: { contains: customerNameOrPhone, mode: 'insensitive' } }
+                ]
+            };
+        }
+
         if (startDate || endDate) {
             whereClause.date = {};
             if (startDate) whereClause.date.gte = new Date(startDate);

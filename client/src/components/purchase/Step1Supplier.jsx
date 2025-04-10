@@ -1,52 +1,38 @@
-// src/components/purchase/Step1Supplier.jsx
-import React, { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+// src/features/purchase/Step1Supplier.jsx
+import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, API_PATHS } from '../../api';
-// Adjust path if needed
 import SearchableSelect from './ui/SearchableSelect';
-import debounce from 'lodash.debounce';
-import LangInput from '../LangInput'; // Adjust path if needed
+import LangInput from '../LangInput';
+import { useSuppliers } from '../../contexts/SupplierContext';
+
 function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
   const [newSupplierPhone, setNewSupplierPhone] = useState('');
   const [newSupplierAddress, setNewSupplierAddress] = useState('');
 
-  // Debounce the search term update
-  const debouncedSetSearchTerm = useCallback(
-    debounce((value) => setSearchTerm(value), 300), // 300ms delay
-    []
-  );
+  // Use supplier context instead of local state
+  const { 
+    suppliers: suppliersData, 
+    isLoading: isLoadingSuppliers,
+    searchTerm,
+    setSearchTerm
+  } = useSuppliers();
 
   const handleSearchChange = (query) => {
-    debouncedSetSearchTerm(query);
+    setSearchTerm(query);
   };
-
-  // --- Fetch Suppliers ---
-  const { data: suppliersData, isLoading: isLoadingSuppliers } = useQuery({
-    queryKey: ['suppliers', searchTerm],
-    queryFn: async () => {
-      const response = await api.get(API_PATHS.suppliers.getAll, {
-        params: { search: searchTerm },
-      });
-      return response.data; // Expects an array of suppliers [{id, name, ...}]
-    },
-    enabled: !!searchTerm, // Only run query when searchTerm is not empty
-    placeholderData: [], // Start with empty array
-  });
 
   // --- Create Supplier Mutation ---
   const { mutate: createSupplier, isLoading: isCreatingSupplier, error: createError } = useMutation({
     mutationFn: (newSupplier) => api.post(API_PATHS.suppliers.create, newSupplier),
     onSuccess: (data) => {
       queryClient.invalidateQueries(['suppliers']); // Invalidate cache to refetch if needed
-      onSupplierSelect(data); // Automatically select the newly created supplier
+      onSupplierSelect(data.data); // Automatically select the newly created supplier
       setShowCreateForm(false); // Hide form
       setNewSupplierName(''); setNewSupplierPhone(''); setNewSupplierAddress(''); // Clear form
-      // Optionally go to next step automatically
-      // onGoToNext();
     },
     onError: (error) => {
         console.error("Error creating supplier:", error);
@@ -118,7 +104,7 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
               type="text"
               id="newSupplierName"
               value={newSupplierName}
-              onChange={ setNewSupplierName}
+              onChange={setNewSupplierName}
               isRequired={true}
               placeholder="Supplier Name"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"

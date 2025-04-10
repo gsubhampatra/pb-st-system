@@ -1,4 +1,4 @@
-// src/components/purchase/Step2Items.jsx
+// src/features/purchase/Step2Items.jsx
 import React, { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import SearchableSelect from './ui/SearchableSelect';

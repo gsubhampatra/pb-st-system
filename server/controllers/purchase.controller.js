@@ -164,7 +164,7 @@ export const createPurchase = async (req, res) => {
 // --- Get All Purchases (with optional filtering/pagination) ---
 export const getPurchases = async (req, res) => {
   const {
-    supplierId,
+    supplierNameORPhone,
     startDate,
     endDate,
     status,
@@ -178,7 +178,17 @@ export const getPurchases = async (req, res) => {
 
   try {
     const whereClause = {};
-    if (supplierId) whereClause.supplierId = supplierId;
+    
+    // Filter by supplier name or phone if provided
+    if (supplierNameORPhone) {
+      whereClause.supplier = {
+        OR: [
+          { name: { contains: supplierNameORPhone, mode: 'insensitive' } },
+          { phone: { contains: supplierNameORPhone } }
+        ]
+      };
+    }
+    
     if (status) whereClause.status = status;
     if (startDate || endDate) {
       whereClause.date = {};

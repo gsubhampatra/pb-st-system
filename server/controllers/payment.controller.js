@@ -89,7 +89,7 @@ export const createPayment = async (req, res) => {
 
 // --- Get All Payments (with optional filtering/pagination) ---
 export const getPayments = async (req, res) => {
-    const { supplierId, accountId, method, startDate, endDate, page = 1, limit = 10 } = req.query;
+    const { supplierId, accountId, method, startDate, endDate, supplierNameORPhone, page = 1, limit = 10 } = req.query;
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -100,6 +100,17 @@ export const getPayments = async (req, res) => {
         if (supplierId) whereClause.supplierId = supplierId;
         if (accountId) whereClause.accountId = accountId; // Filter by specific account
         if (method) whereClause.method = method;
+        
+        // Add supplierNameORPhone search filter
+        if (supplierNameORPhone) {
+            whereClause.supplier = {
+                OR: [
+                    { name: { contains: supplierNameORPhone, mode: 'insensitive' } },
+                    { phone: { contains: supplierNameORPhone, mode: 'insensitive' } }
+                ]
+            };
+        }
+        
         if (startDate || endDate) {
             whereClause.date = {};
             if (startDate) whereClause.date.gte = new Date(startDate);

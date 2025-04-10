@@ -100,7 +100,7 @@ const CustomerForm = ({ customer, onSuccess }) => {
         />
       </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
+      <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
         <button
           type="button"
           onClick={onSuccess}

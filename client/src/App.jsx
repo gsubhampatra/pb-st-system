@@ -1,45 +1,74 @@
-// src/App.js
 import React from 'react';
-import { Routes, Route, Link } from 'react-router-dom'; // Import routing components
-import PurchaseForm from './components/purchase/PurchaseForm'; // Assuming path is correct
+import { Routes, Route, Link } from 'react-router-dom';
+import PurchaseForm from './components/purchase/PurchaseForm';
 import ItemsPage from './components/items/ItemsPage';
 import CustomerTable from './components/customer/CustomerTable';
 import PurchaseTable from './components/purchase/PurchaseTable';
+import SalesPage from './components/sales/SalesPage';
 import Navbar from './components/Navbar';
-// Import other components/pages you might create later
-// import HomePage from './pages/HomePage';
-// import ItemList from './components/item/ItemList';
-// import PurchaseList from './components/purchase/PurchaseList';
-
-function HomePagePlaceholder() {
-  return <h1 className="text-2xl font-bold">Welcome!</h1>;
-}
+import HomePage from './components/home/HomePage';
+import AccountsPage from './components/accounts/AccountsPage';
+import PaymentTable from './components/payments/PaymentTable';
+import PaymentForm from './components/payments/PaymentForm';
+import ReceiptTable from './components/receipt/ReceiptTable';
+import ReceiptForm from './components/receipt/ReceiptForm';
+import { CustomerProvider } from './contexts/CustomerContext';
+import { SupplierProvider } from './contexts/SupplierContext';
+import { ItemProvider } from './contexts/ItemContext';
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      {/* Main Content Area */}
-      <main className="container mx-auto p-4">
-        {/* Define the Routes */}
-        <Routes>
-          {/* Route for the homepage */}
-          <Route path="/" element={<HomePagePlaceholder />} />
+    <CustomerProvider>
+      <SupplierProvider>
+        <ItemProvider>
+          <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+            <Navbar />
+            {/* Main Content Area */}
+            <main className="flex-1 p-4 md:ml-0">
+              <div className="max-w-7xl mx-auto">
+                {/* Define the Routes */}
+                <Routes>
+                  {/* Home Page */}
+                  <Route path="/" element={<HomePage />} />
 
-          {/* Route for the Purchase Form */}
-          <Route path="/purchases/new" element={<PurchaseForm />} />
+                  {/* Purchase Routes */}
+                  <Route path="/purchases" element={<PurchaseTable />} />
+                  <Route path="/purchases/new" element={<PurchaseForm />} />
 
+                  {/* Sales Routes */}
+                  <Route path="/sales/*" element={<SalesPage />} />
 
-          <Route path='/items' element={<ItemsPage />} />
+                  {/* Items Route */}
+                  <Route path="/items" element={<ItemsPage />} />
 
-          <Route path='/customers' element={<CustomerTable />} />
+                  {/* Customers Route */}
+                  <Route path="/customers" element={<CustomerTable />} />
 
-          <Route path="/purchases" element={<PurchaseTable />} />
+                  {/* Accounts Route */}
+                  <Route path="/accounts" element={<AccountsPage />} />
 
-          <Route path="*" element={<div><h2>404 Page Not Found</h2><Link to="/">Go Home</Link></div>} />
-        </Routes>
-      </main>
-    </div>
+                  {/* Payments Routes */}
+                  <Route path="/payments" element={<PaymentTable />} />
+                  <Route path="/payments/new" element={<PaymentForm />} />
+
+                  {/* Receipts Routes */}
+                  <Route path="/receipts" element={<ReceiptTable />} />
+                  <Route path="/receipts/new" element={<ReceiptForm />} />
+
+                  {/* 404 Route */}
+                  <Route path="*" element={
+                    <div className="text-center py-12">
+                      <h2 className="text-2xl font-bold text-gray-800 mb-4">404 Page Not Found</h2>
+                      <Link to="/" className="text-blue-600 hover:text-blue-800">Return to Home</Link>
+                    </div>
+                  } />
+                </Routes>
+              </div>
+            </main>
+          </div>
+        </ItemProvider>
+      </SupplierProvider>
+    </CustomerProvider>
   );
 }
 

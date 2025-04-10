@@ -147,7 +147,7 @@ export const createSale = async (req, res) => {
 
 // --- Get All Sales (with optional filtering/pagination) ---
 export const getSales = async (req, res) => {
-    const { customerId, startDate, endDate, status, page = 1, limit = 10 } = req.query;
+    const { customerNameOrPhone, startDate, endDate, status, page = 1, limit = 10 } = req.query;
 
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -155,7 +155,17 @@ export const getSales = async (req, res) => {
 
     try {
         const whereClause = {};
-        if (customerId) whereClause.customerId = customerId;
+        
+        // Search by customer name or phone if provided
+        if (customerNameOrPhone) {
+            whereClause.customer = {
+                OR: [
+                    { name: { contains: customerNameOrPhone, mode: 'insensitive' } },
+                    { phone: { contains: customerNameOrPhone, mode: 'insensitive' } }
+                ]
+            };
+        }
+        
         if (status) whereClause.status = status;
         if (startDate || endDate) {
             whereClause.date = {};
@@ -172,7 +182,7 @@ export const getSales = async (req, res) => {
             where: whereClause,
             include: {
                 customer: { // Include basic customer info
-                    select: { name: true },
+                    select: { name: true, phone: true },
                 },
                 _count: { // Optionally count items per sale
                     select: { items: true }

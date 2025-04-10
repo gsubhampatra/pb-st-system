@@ -19,7 +19,7 @@ const CustomerCreditReport = ({ customerId }) => {
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Credit Summary</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="flex items-center">
               <FiDollarSign className="text-blue-500 text-2xl mr-3" />

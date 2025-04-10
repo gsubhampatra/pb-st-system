@@ -1,25 +1,25 @@
-// src/features/purchase/Step3Summary.jsx
 import React from 'react';
-import { FaPrint } from 'react-icons/fa'; // Example icon
+import { FaPrint } from 'react-icons/fa';
 
 const STATUS_OPTIONS = [
   { value: 'recorded', label: 'Recorded (Unpaid/Partially Paid)' },
   { value: 'paid', label: 'Paid in Full' },
-  // Add other statuses if needed: 'cancelled', etc.
+  { value: 'partial', label: 'Partially Paid' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 function Step3Summary({
-  selectedSupplier,
-  purchaseItems,
+  selectedCustomer,
+  saleItems,
   status,
-  paidAmount,
+  receivedAmount,
   totalAmount,
   onStatusChange,
-  onPaidAmountChange,
-  onSubmit, // Function to call when saving
+  onReceivedAmountChange,
+  onSubmit,
   onGoToPrev,
-  isSubmitting, // Loading state for submission
-  submitError, // Error state for submission
+  isSubmitting,
+  submitError,
 }) {
 
   return (
@@ -29,24 +29,22 @@ function Step3Summary({
       {/* --- Submission Error --- */}
       {submitError && (
         <div className="rounded-md bg-red-50 p-4">
-          <h3 className="text-sm font-medium text-red-800">Error Saving Purchase</h3>
+          <h3 className="text-sm font-medium text-red-800">Error Saving Sale</h3>
           <p className="mt-2 text-sm text-red-700">{submitError.response?.data?.message || submitError.message || 'An unknown error occurred.'}</p>
         </div>
       )}
 
-
       {/* --- Summary Details --- */}
       <div className="p-4 border rounded-md bg-white space-y-4">
-       
         <div>
-          <h3 className="font-medium text-gray-700">Supplier:</h3>
-          <p className="text-sm text-gray-600">{selectedSupplier?.name || 'N/A'} ({selectedSupplier?.phone || 'No phone'})</p>
-          <p className="text-sm text-gray-600">{selectedSupplier?.address || 'No address'}</p>
+          <h3 className="font-medium text-gray-700">Customer:</h3>
+          <p className="text-sm text-gray-600">{selectedCustomer?.name || 'N/A'} ({selectedCustomer?.phone || 'No phone'})</p>
+          <p className="text-sm text-gray-600">{selectedCustomer?.address || 'No address'}</p>
         </div>
         <div>
           <h3 className="font-medium text-gray-700">Items:</h3>
           <ul className="list-disc list-inside text-sm text-gray-600">
-            {purchaseItems.map((item, index) => (
+            {saleItems.map((item, index) => (
               <li key={item.tempKey || item.itemId + index}>
                 {item.quantity} x {item.itemName} @ {item.unitPrice.toFixed(2)} = {item.totalPrice.toFixed(2)}
               </li>
@@ -78,23 +76,25 @@ function Step3Summary({
         </div>
 
         <div>
-          <label htmlFor="paidAmount" className="block text-sm font-medium text-gray-700">
-            Paid Amount {status !== 'paid' ? '(Optional)' : ''}
+          <label htmlFor="receivedAmount" className="block text-sm font-medium text-gray-700">
+            Received Amount {status !== 'paid' ? '(Optional)' : ''}
           </label>
           <input
             type="number"
-            id="paidAmount"
+            id="receivedAmount"
             step="0.01"
             min="0"
-            // max={totalAmount} // Optional: prevent overpayment?
-            value={paidAmount}
-            onChange={(e) => onPaidAmountChange(e.target.value)}
-            // Only strictly require if status is 'paid'
+            max={totalAmount}
+            value={receivedAmount}
+            onChange={(e) => onReceivedAmountChange(e.target.value)}
             required={status === 'paid'}
             className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${status !== 'paid' ? 'bg-gray-100' : ''}`}
           />
-          {status === 'paid' && parseFloat(paidAmount || 0) !== totalAmount && (
-            <p className="mt-1 text-xs text-orange-600">Status is 'Paid', but Paid Amount doesn't match Total Amount.</p>
+          {status === 'paid' && parseFloat(receivedAmount || 0) !== totalAmount && (
+            <p className="mt-1 text-xs text-orange-600">Status is 'Paid', but Received Amount doesn't match Total Amount.</p>
+          )}
+          {parseFloat(receivedAmount || 0) > 0 && parseFloat(receivedAmount || 0) < totalAmount && status !== 'partial' && (
+            <p className="mt-1 text-xs text-blue-600">Consider setting status to 'Partially Paid'.</p>
           )}
         </div>
       </div>
@@ -114,16 +114,16 @@ function Step3Summary({
           <button
             type="button"
             onClick={() => onSubmit(false)} // Pass false for print flag
-            disabled={isSubmitting || purchaseItems.length === 0 || !selectedSupplier}
+            disabled={isSubmitting || saleItems.length === 0 || !selectedCustomer}
             className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            {isSubmitting ? 'Saving...' : 'Save Purchase'}
+            {isSubmitting ? 'Saving...' : 'Save Sale'}
           </button>
           {/* Save and Print Button */}
           <button
             type="button"
             onClick={() => onSubmit(true)} // Pass true for print flag
-            disabled={isSubmitting || purchaseItems.length === 0 || !selectedSupplier}
+            disabled={isSubmitting || saleItems.length === 0 || !selectedCustomer}
             className="ml-3 inline-flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
             <FaPrint className="mr-2 h-4 w-4" />
