@@ -21,7 +21,7 @@ import saleRoutes from "./routes/sale.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import receiptRoutes from "./routes/receipt.routes.js";
 import accountRoutes from "./routes/account.routes.js";
-import reportDownloadRoutes from "./routes/reportDownload.routes.js";
+import reportRoutes from "./routes/report.routes.js";
 
 //routes
 app.use("/api/items", itemRoutes);
@@ -32,7 +32,7 @@ app.use("/api/sales", saleRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/receipts", receiptRoutes);
 app.use("/api/accounts", accountRoutes);
-app.use("/api/report-downloads", reportDownloadRoutes);
+app.use("/api/reports", reportRoutes);
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {

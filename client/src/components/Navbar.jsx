@@ -36,6 +36,7 @@ const Navbar = () => {
     { path: '/accounts', label: 'Accounts', icon: <FiCreditCard size={18} /> },
     { path: '/items', label: 'Items', icon: <FiPackage size={18} /> },
     { path: '/customers', label: 'Customers', icon: <FiUsers size={18} /> },
+    { path:  '/reports', label: 'Reports', icon: <FiFileText size={18} /> },
   ];
 
   // Check if a path is active (exact match or starts with path for nested routes)

@@ -15,6 +15,7 @@ import ReceiptForm from './components/receipt/ReceiptForm';
 import { CustomerProvider } from './contexts/CustomerContext';
 import { SupplierProvider } from './contexts/SupplierContext';
 import { ItemProvider } from './contexts/ItemContext';
+import ReportsPage from './components/reports/ReportsPage';
 
 function App() {
   return (
@@ -54,6 +55,8 @@ function App() {
                   {/* Receipts Routes */}
                   <Route path="/receipts" element={<ReceiptTable />} />
                   <Route path="/receipts/new" element={<ReceiptForm />} />
+
+                  <Route path="/reports" element={<ReportsPage />} />
 
                   {/* 404 Route */}
                   <Route path="*" element={

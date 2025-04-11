@@ -107,6 +107,14 @@ const HomePage = () => {
       path: '/receipts/new',
       color: 'bg-gradient-to-br from-red-500 to-red-600'
     },
+    {
+      id: 'reports',
+      title: 'Reports and Analytics',
+      description: 'Generate reports and analytics for business insights',
+      icon: <FiBarChart2 />,
+      path: '/reports',
+      color: 'bg-gradient-to-br from-pink-500 to-pink-600'
+    }
   ];
 
   const handleCardClick = (path) => {
