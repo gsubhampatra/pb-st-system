@@ -15,36 +15,59 @@ const PurchaseDetail = ({ purchaseId }) => {
     }
   });
 
-  const handleOpenThermalPrintApp = () => {
-    const escposCommands = `
-        [C]<b>Patra Bhandar</b>\n
-        [C]PURCHASE INVOICE\n
-        Invoice No: ${purchase.invoiceNo}\n
-        Date: ${format(new Date(purchase.date), 'dd/MM/yyyy')}\n
-        Supplier: ${purchase.supplier?.name || ''}\n
-        ------------------------------\n
-        ${purchase.items
+  // Utility: Convert string to Uint8Array
+  function textToBytes(text) {
+    const encoder = new TextEncoder();
+    return encoder.encode(text);
+  }
+
+  async function handleWebBluetoothPrint() {
+    const escposText = `
+    Patra Bhandar
+    PURCHASE INVOICE
+    Invoice No: ${purchase.invoiceNo}
+    Date: ${new Date(purchase.date).toLocaleDateString('en-IN')}
+    Supplier: ${purchase.supplier?.name || ''}
+
+    ------------------------------
+    ${purchase.items
         .map(
           (item, i) =>
             `${i + 1}. ${item.item.name.split('-')[0].trim()} ${item.quantity} x ${item.unitPrice.toFixed(2)} = ${(item.quantity * item.unitPrice).toFixed(2)}`
         )
         .join('\n')}
-        ------------------------------\n
-        Total: ₹${purchase.totalAmount.toFixed(2)}\n
-        Paid: ₹${purchase.paidAmount.toFixed(2)}\n
-        Due: ₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}\n
-        ------------------------------\n
-        Contact: 7847916571\n
-        Thank you!\n
-      `;
+    ------------------------------
+    Total: ₹${purchase.totalAmount.toFixed(2)}
+    Paid: ₹${purchase.paidAmount.toFixed(2)}
+    Due: ₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}
+    ------------------------------
+    Contact: 7847916571
+    Thank you!
+    \n\n\n
+  `;
 
-    const base64Data = btoa(unescape(encodeURIComponent(escposCommands)));
-    const rawbtUri = `intent://print/#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.data=${base64Data};end`;
+    const data = textToBytes(escposText);
 
-    window.location.href = rawbtUri;
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: "Printer" }],
+        optionalServices: [0x1101], // Serial Port
+      });
 
+      const server = await device.gatt?.connect();
+      const service = await server?.getPrimaryService(0x1101);
+      const characteristic = await service?.getCharacteristic(0x2A6E); // TX characteristic, may vary
 
-  };
+      if (characteristic) {
+        await characteristic.writeValue(data);
+        alert("Printed successfully!");
+      }
+    } catch (err) {
+      console.error("Bluetooth printing error:", err);
+      alert("Failed to print: " + err);
+    }
+  }
+
 
 
   const handleThermalPrint = () => {
@@ -115,8 +138,17 @@ const PurchaseDetail = ({ purchaseId }) => {
         </body>
       </html>`;
 
-    const printWindow = window.open('', '', 'width=300,height=600');
-    printWindow.document.write(content);
+    const printWindow = window.open('', '', 'width=1056,height=1480');
+    printWindow.document.write(`
+      <style>
+        @media print {
+          @page {
+            size: A6;
+            margin: 0;
+          }
+        }
+      </style>
+    ` + content);
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
@@ -180,7 +212,7 @@ const PurchaseDetail = ({ purchaseId }) => {
           Share via SMS
         </button>
         <button
-          onClick={handleOpenThermalPrintApp}
+          onClick={handleWebBluetoothPrint}
           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm"
         >
           Print
