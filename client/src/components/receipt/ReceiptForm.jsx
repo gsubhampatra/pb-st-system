@@ -5,7 +5,7 @@ import { api, API_PATHS } from '../../api';
 import { FiSearch } from 'react-icons/fi';
 import { useCustomers } from '../../contexts/CustomerContext';
 
-const ReceiptForm = ({ receipt, onSuccess }) => {
+const ReceiptForm = ({ receipt, onSuccess: onDone }) => {
   const queryClient = useQueryClient();
   const { customers, isLoading: customersLoading, searchTerm, setSearchTerm } = useCustomers();
   
@@ -145,7 +145,7 @@ const ReceiptForm = ({ receipt, onSuccess }) => {
       queryClient.invalidateQueries(['receipts']);
       queryClient.invalidateQueries(['accounts']); // Refresh accounts as balance might change
       queryClient.invalidateQueries(['customers']); // Refresh customers as credit might change
-      onSuccess();
+      onDone();
     },
     onError: (error) => {
       console.error('Error saving receipt:', error);

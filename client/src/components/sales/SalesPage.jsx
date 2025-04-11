@@ -8,6 +8,7 @@ function SalesPage() {
     <Routes>
       <Route path="/" element={<SalesTable />} />
       <Route path="/new" element={<SalesForm />} />
+      <Route path="/edit/:id" element={<SalesForm />} />
       <Route path="*" element={<Navigate to="/sales" replace />} />
     </Routes>
   );

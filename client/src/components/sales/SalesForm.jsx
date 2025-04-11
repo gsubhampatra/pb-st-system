@@ -2,174 +2,302 @@ import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, API_PATHS } from '../../api';
 import { format } from 'date-fns';
-import { FaPrint } from 'react-icons/fa';
-import SearchableSelect from '../purchase/ui/SearchableSelect';
-import debounce from 'lodash.debounce';
+import { useCustomers } from '../../contexts/CustomerContext';
+import { useItems } from '../../contexts/ItemContext';
 
-// Step components
-import Step1Customer from './Step1Customer';
-import Step2Items from './Step2Items';
-import Step3Summary from './Step3Summary';
-
-function SalesForm() {
+function SalesForm({ saleId, onSuccess, onClose }) {
   const queryClient = useQueryClient();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [saleItems, setSaleItems] = useState([]); // Array of { itemId, quantity, unitPrice, totalPrice, ... }
-  const [status, setStatus] = useState('recorded'); // Default status
-  const [receivedAmount, setReceivedAmount] = useState('');
-  const [totalAmount, setTotalAmount] = useState(0);
+  const { customers } = useCustomers();
+  const { items } = useItems();
 
-  // --- Calculate Total Amount ---
-  useEffect(() => {
-    const total = saleItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
-    setTotalAmount(total);
-  }, [saleItems]);
-
-  // --- Navigation ---
-  const nextStep = () => setCurrentStep((prev) => prev + 1);
-  const prevStep = () => setCurrentStep((prev) => prev - 1);
-
-  // --- Step 1 Handler ---
-  const handleCustomerSelect = (customer) => {
-    setSelectedCustomer(customer);
-  };
-  
-  // --- Step 2 Handlers ---
-  const handleAddItem = (newItem) => {
-    // Always add new item, even if same item ID is already present
-    setSaleItems((prev) => [...prev, newItem]);
-  };
-
-  const handleRemoveItem = (itemKey) => { // Use the unique key passed from Step 2
-    setSaleItems((prev) => prev.filter((item, index) => (item.tempKey || item.itemId + index) !== itemKey));
-  };
-
-  // --- Step 3 Handlers ---
-  const handleStatusChange = (newStatus) => {
-    setStatus(newStatus);
-    // If changing status *to* 'paid', auto-fill receivedAmount with totalAmount
-    if (newStatus === 'paid') {
-      setReceivedAmount(totalAmount.toFixed(2));
-    }
-  };
-
-  const handleReceivedAmountChange = (amount) => {
-    setReceivedAmount(amount);
-  };
-
-  // --- Sale Creation Mutation ---
-  const { mutate: createSale, isLoading: isSubmitting, error: submitError, isSuccess, reset } = useMutation({
-    mutationFn: (saleData) => api.post(API_PATHS.sales.create, saleData),
-    onSuccess: (data, variables) => { // data = created sale, variables = submitted data
-      console.log('Sale created successfully:', data);
-      alert('Sale created successfully!');
-      queryClient.invalidateQueries(['sales']); // Invalidate sale list cache
-      queryClient.invalidateQueries(['items']); // Invalidate items cache (stock changed)
-      queryClient.invalidateQueries(['stockTransactions']); // Invalidate stock transactions
-
-      // Handle print action
-      if (variables.shouldPrint) {
-        // Give a slight delay for UI updates if needed, then print
-        setTimeout(() => {
-          console.log("Triggering print...");
-          window.print(); // Or trigger specific print logic
-        }, 100);
-      }
-
-      // Reset form state
-      setCurrentStep(1);
-      setSelectedCustomer(null);
-      setSaleItems([]);
-      setStatus('recorded');
-      setReceivedAmount('');
-      setTotalAmount(0);
-      reset(); // Reset mutation state
-    },
-    onError: (error) => {
-      console.error("Error creating sale:", error);
-      // Error is displayed in Step3Summary
-    }
+  // Fetch sale data if in edit mode
+  const { data: saleData } = useQuery({
+    queryKey: ['sale', saleId],
+    queryFn: () => api.get(API_PATHS.sales.getById(saleId)),
+    enabled: !!saleId,
   });
 
-  const handleSubmit = (shouldPrint = false) => {
-    // --- Validation before submitting ---
-    if (!selectedCustomer) {
-      alert('Please select a customer.');
-      setCurrentStep(1);
-      return;
-    }
-    if (saleItems.length === 0) {
-      alert('Please add items to the sale.');
-      setCurrentStep(2);
-      return;
-    }
+  const [formData, setFormData] = useState({
+    customerId: '',
+    items: [],
+    receivedAmount: 0,
+    status: 'recorded',
+  });
 
-    // Prepare sale data
-    const saleData = {
-      customerId: selectedCustomer.id,
-      date: format(new Date(), 'yyyy-MM-dd'),
-      items: saleItems.map(item => ({
-        itemId: item.itemId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice
-      })),
-      receivedAmount: receivedAmount ? parseFloat(receivedAmount) : 0,
-      status: status,
-      shouldPrint: shouldPrint // Pass print flag to onSuccess handler via variables
-    };
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
-    console.log("Submitting Sale Data:", saleData);
-    createSale(saleData);
+  // Initialize form with sale data when in edit mode
+  useEffect(() => {
+    if (saleData?.data) {
+      setFormData({
+        customerId: saleData.data.customerId || '',
+        items: saleData.data.items?.map(item => ({
+          itemId: item.itemId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })) || [],
+        receivedAmount: saleData.data.receivedAmount || 0,
+        status: saleData.data.status || 'recorded',
+      });
+    }
+  }, [saleData]);
+
+  useEffect(() => {
+    const total = formData.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+    setTotalAmount(total);
+  }, [formData.items]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // --- Render Current Step ---
-  const renderStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <Step1Customer
-            onCustomerSelect={handleCustomerSelect}
-            onGoToNext={nextStep}
-            currentCustomer={selectedCustomer}
-          />
-        );
-      case 2:
-        return (
-          <Step2Items
-            saleItems={saleItems}
-            onAddItem={handleAddItem}
-            onRemoveItem={handleRemoveItem}
-            onGoToPrev={prevStep}
-            onGoToNext={nextStep}
-          />
-        );
-      case 3:
-        return (
-          <Step3Summary
-            selectedCustomer={selectedCustomer}
-            saleItems={saleItems}
-            status={status}
-            receivedAmount={receivedAmount}
-            totalAmount={totalAmount}
-            onStatusChange={handleStatusChange}
-            onReceivedAmountChange={handleReceivedAmountChange}
-            onSubmit={handleSubmit}
-            onGoToPrev={prevStep}
-            isSubmitting={isSubmitting}
-            submitError={submitError}
-          />
-        );
-      default:
-        return <div>Invalid Step</div>;
+  const handleAddItem = () => {
+    setFormData((prev) => ({
+      ...prev,
+      items: [...prev.items, { itemId: '', quantity: 1, unitPrice: 0 }],
+    }));
+  };
+
+  const handleRemoveItem = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index),
+    }));
+  };
+
+  const validateStock = (itemId, quantity) => {
+    const item = items.find((i) => i.id === itemId);
+    if (item && quantity > item.currentStock) {
+      return `Quantity exceeds available stock (${item.currentStock}).`;
+    }
+    return null;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const validationErrors = {};
+    formData.items.forEach((item, index) => {
+      const error = validateStock(item.itemId, item.quantity);
+      if (error) {
+        validationErrors[index] = error;
+      }
+    });
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      setIsLoading(false);
+      return;
+    }
+
+    const saleData = {
+      ...formData,
+      totalAmount,
+      date: format(new Date(), 'yyyy-MM-dd'),
+    };
+
+    try {
+      if (saleId) {
+        await api.put(API_PATHS.sales.update(saleId), saleData);
+      } else {
+        await api.post(API_PATHS.sales.create, saleData);
+      }
+
+      queryClient.invalidateQueries(['sales']);
+      onSuccess?.();
+    } catch (error) {
+      alert('An error occurred while saving the sale. Please try again.');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8 bg-gray-100 rounded-lg shadow-md">
-      {/* Render the active step */}
-      <div className="mt-8">
-        {renderStep()}
+    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl">
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">
+            {saleId ? 'Edit Sale' : 'Create New Sale'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            &times;
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">
+              Customer
+            </label>
+            <select
+              id="customerId"
+              name="customerId"
+              value={formData.customerId}
+              onChange={handleChange}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+              required
+            >
+              <option value="">Select Customer</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.id}>
+                  {customer.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold">Items</h3>
+            <div className="flex justify-between items-center">
+              <button
+                type="button"
+                onClick={handleAddItem}
+                className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md"
+              >
+                Add Item
+              </button>
+              <div className="text-lg font-semibold">
+                Total: ₹{totalAmount.toFixed(2)}
+              </div>
+            </div>
+            <ul className="mt-4 space-y-4">
+              {formData.items.map((item, index) => (
+                <li key={index} className="grid grid-cols-12 gap-4 items-center">
+                  <div className="col-span-5">
+                    <select
+                      value={item.itemId}
+                      onChange={(e) => {
+                        const newItems = [...formData.items];
+                        newItems[index].itemId = e.target.value;
+                        // Auto-fill the unit price when item is selected
+                        const selectedItem = items.find(i => i.id === e.target.value);
+                        if (selectedItem) {
+                          newItems[index].unitPrice = selectedItem.sellingPrice;
+                        }
+                        setFormData((prev) => ({ ...prev, items: newItems }));
+                      }}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3"
+                      required
+                    >
+                      <option value="">Select Item</option>
+                      {items.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} (Stock: {item.currentStock})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const newItems = [...formData.items];
+                        newItems[index].quantity = parseInt(e.target.value, 10) || 0;
+                        setFormData((prev) => ({ ...prev, items: newItems }));
+
+                        const error = validateStock(newItems[index].itemId, newItems[index].quantity);
+                        setErrors((prevErrors) => ({ ...prevErrors, [index]: error }));
+                      }}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-3">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => {
+                        const newItems = [...formData.items];
+                        newItems[index].unitPrice = parseFloat(e.target.value) || 0;
+                        setFormData((prev) => ({ ...prev, items: newItems }));
+                      }}
+                      className="w-full border border-gray-300 rounded-md py-2 px-3"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(index)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  {errors[index] && (
+                    <div className="col-span-12 text-red-600 text-sm">
+                      {errors[index]}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="receivedAmount" className="block text-sm font-medium text-gray-700">
+                Received Amount
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                id="receivedAmount"
+                name="receivedAmount"
+                value={formData.receivedAmount}
+                onChange={handleChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+              />
+            </div>
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+                Status
+              </label>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+              >
+                <option value="recorded">Recorded</option>
+                <option value="partial">Partially Paid</option>
+                <option value="paid">Paid</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="pt-4 border-t flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isLoading ? 'Saving...' : saleId ? 'Update Sale' : 'Create Sale'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

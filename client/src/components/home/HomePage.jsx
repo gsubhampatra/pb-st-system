@@ -19,6 +19,23 @@ const HomePage = () => {
 
   const navCards = [
     {
+      id: 'new-purchase',
+      title: 'Create New Purchase',
+      description: 'Record a new purchase from suppliers',
+      icon: <FiShoppingBag />,
+      path: '/purchases/new',
+      color: 'bg-gradient-to-br from-indigo-500 to-indigo-600'
+    },
+    {
+      id: 'purchases',
+      title: 'Purchases Management',
+      description: 'Create and manage purchases, view supplier purchases',
+      icon: <FiShoppingBag />,
+      path: '/purchases',
+      color: 'bg-gradient-to-br from-blue-500 to-blue-600'
+    },
+
+    {
       id: 'sales',
       title: 'Sales Management',
       description: 'Create and manage sales, view sale history, print receipts',
@@ -33,22 +50,6 @@ const HomePage = () => {
       icon: <FiShoppingCart />,
       path: '/sales/new',
       color: 'bg-gradient-to-br from-emerald-500 to-emerald-600'
-    },
-    {
-      id: 'purchases',
-      title: 'Purchases Management',
-      description: 'Create and manage purchases, view supplier purchases',
-      icon: <FiShoppingBag />,
-      path: '/purchases',
-      color: 'bg-gradient-to-br from-blue-500 to-blue-600'
-    },
-    {
-      id: 'new-purchase',
-      title: 'Create New Purchase',
-      description: 'Record a new purchase from suppliers',
-      icon: <FiShoppingBag />,
-      path: '/purchases/new',
-      color: 'bg-gradient-to-br from-indigo-500 to-indigo-600'
     },
     {
       id: 'inventory',
@@ -106,22 +107,6 @@ const HomePage = () => {
       path: '/receipts/new',
       color: 'bg-gradient-to-br from-red-500 to-red-600'
     },
-    {
-      id: 'reports',
-      title: 'Reports & Analytics',
-      description: 'View sales, purchases and inventory reports',
-      icon: <FiBarChart2 />,
-      path: '/reports',
-      color: 'bg-gradient-to-br from-purple-500 to-purple-600'
-    },
-    {
-      id: 'dashboard',
-      title: 'Business Dashboard',
-      description: 'Overview of sales, purchases, and stock levels',
-      icon: <FiActivity />,
-      path: '/dashboard',
-      color: 'bg-gradient-to-br from-cyan-500 to-cyan-600'
-    }
   ];
 
   const handleCardClick = (path) => {

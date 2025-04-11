@@ -58,8 +58,8 @@ const SaleDetail = ({ saleId }) => {
   
           <table>
             ${sale.items
-              .map(
-                (item, i) => `
+        .map(
+          (item, i) => `
                   <tr>
                     <td>${i + 1}. ${item.item.name.split('-')[0].trim()}</td>
                     <td class="right">${item.quantity} x ${item.unitPrice.toFixed(2)}</td>
@@ -68,8 +68,8 @@ const SaleDetail = ({ saleId }) => {
                     <td class="right">Total</td>
                     <td class="right">${(item.quantity * item.unitPrice).toFixed(2)}</td>
                   </tr>`
-              )
-              .join('')}
+        )
+        .join('')}
           </table>
   
           <div class="line"></div>

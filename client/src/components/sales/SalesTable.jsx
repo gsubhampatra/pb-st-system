@@ -5,12 +5,12 @@ import { api, API_PATHS, addQueryParams } from '../../api';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import SaleDetail from './SaleDetail';
-import EditSaleForm from './EditSaleForm';
+import SalesForm from './SalesForm';
 
 const SalesTable = () => {
     const queryClient = useQueryClient();
-    const [isFormOpen, setIsFormOpen] = useState(false);
-    const [selectedSale, setSelectedSale] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedSaleId, setSelectedSaleId] = useState(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [filters, setFilters] = useState({
         customerNameOrPhone: '',
@@ -72,23 +72,23 @@ const SalesTable = () => {
         const worksheet = XLSX.utils.json_to_sheet(salesData.data);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales');
-        
+
         // Generate filename with date and time
         const now = new Date();
         const dateStr = format(now, 'yyyy-MM-dd');
         const timeStr = format(now, 'HH-mm-ss');
-        
+
         // Add filter information to filename
         let filename = `Sales_${dateStr}_${timeStr}`;
-        
+
         // Add customer name if filtered
         if (filters.customerNameOrPhone) {
-            const customerName = salesData.data.length > 0 && salesData.data[0].customer ? 
-                `_${salesData.data[0].customer.name.replace(/\s+/g, '-')}` : 
+            const customerName = salesData.data.length > 0 && salesData.data[0].customer ?
+                `_${salesData.data[0].customer.name.replace(/\s+/g, '-')}` :
                 `_Customer-${filters.customerNameOrPhone}`;
             filename += customerName;
         }
-        
+
         // Add date range if specified
         if (filters.startDate) {
             filename += `_from-${filters.startDate}`;
@@ -96,17 +96,17 @@ const SalesTable = () => {
         if (filters.endDate) {
             filename += `_to-${filters.endDate}`;
         }
-        
+
         // Add status if filtered
         if (filters.status) {
             filename += `_${filters.status}`;
         }
-        
+
         // Add item count, total and received amounts summary
         const totalItems = salesData.data.reduce((sum, sale) => sum + (sale._count?.items || 0), 0);
         const totalAmount = salesData.data.reduce((sum, sale) => sum + sale.totalAmount, 0);
         const receivedAmount = salesData.data.reduce((sum, sale) => sum + sale.receivedAmount, 0);
-        
+
         worksheet['!cols'] = [
             { wch: 15 }, // Date
             { wch: 25 }, // Customer
@@ -115,21 +115,30 @@ const SalesTable = () => {
             { wch: 15 }, // Received
             { wch: 15 }  // Status
         ];
-        
+
         // Add summary row at the bottom
         XLSX.utils.sheet_add_aoa(worksheet, [
             ['', '', '', '', '', ''],
             ['Summary:', '', `Items: ${totalItems}`, `Total: $${totalAmount.toFixed(2)}`, `Received: $${receivedAmount.toFixed(2)}`, '']
         ], { origin: -1 });
-        
+
         XLSX.writeFile(workbook, `${filename}.xlsx`);
     };
 
-    const handleCloseForm = () => {
-        setIsFormOpen(false);
-        setSelectedSale(null);
+    const handleCreateNew = () => {
+        setSelectedSaleId(null);
+        setIsModalOpen(true);
     };
 
+    const handleEditSale = (saleId) => {
+        setSelectedSaleId(saleId);
+        setIsModalOpen(true);
+    };
+
+    const handleSuccess = () => {
+        setIsModalOpen(false);
+        setSelectedSaleId(null);
+    };
     const handlePageChange = (newPage) => {
         setFilters(prev => ({ ...prev, page: newPage }));
     };
@@ -148,7 +157,7 @@ const SalesTable = () => {
                         Export to Excel
                     </button>
                     <button
-                        onClick={() => window.location.href = '/sales/new'}
+                        onClick={handleCreateNew}
                         className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                         <FiPlus className="mr-2" />
@@ -254,10 +263,10 @@ const SalesTable = () => {
                                             {sale._count?.items || 0}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            ${sale.totalAmount.toFixed(2)}
+                                        ₹{sale.totalAmount.toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            ${sale.receivedAmount.toFixed(2)}
+                                        ₹{sale.receivedAmount.toFixed(2)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${sale.status === 'paid' ? 'bg-green-100 text-green-800' :
@@ -284,10 +293,7 @@ const SalesTable = () => {
                                                 <FiPrinter />
                                             </button>
                                             <button
-                                                onClick={() => {
-                                                    setSelectedSale(sale);
-                                                    setIsFormOpen(true);
-                                                }}
+                                                onClick={() => handleEditSale(sale.id)}
                                                 className="text-green-600 hover:text-green-800"
                                                 title="Edit"
                                             >
@@ -363,22 +369,13 @@ const SalesTable = () => {
             )}
 
             {/* Edit Sale Modal */}
-            {isFormOpen && selectedSale && (
+            {isModalOpen && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl overflow-y-auto max-h-[90vh]">
-                        <div className="p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-xl font-semibold">Edit Sale</h2>
-                                <button
-                                    onClick={handleCloseForm}
-                                    className="text-gray-500 hover:text-gray-700"
-                                >
-                                    &times;
-                                </button>
-                            </div>
-                            <EditSaleForm sale={selectedSale} onSuccess={handleCloseForm} />
-                        </div>
-                    </div>
+                    <SalesForm
+                        saleId={selectedSaleId}
+                        onSuccess={handleSuccess}
+                        onClose={() => setIsModalOpen(false)}
+                    />
                 </div>
             )}
 

@@ -169,20 +169,20 @@ function ItemsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Name */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name *</label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
               <LangInput
                 type="text"
                 id="name"
                 value={name}
                 onChange={setName}
                 isRequired={true}
-                placeholder='e.g., '
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                placeholder='Enter item name'
+                className="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition duration-150 ease-in-out hover:border-indigo-300"
               />
             </div>
             {/* Unit */}
             <div>
-              <label htmlFor="unit" className="block text-sm font-medium text-gray-700">Unit *</label>
+              <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">Unit *</label>
               <input
                 type="text"
                 id="unit"
@@ -190,12 +190,12 @@ function ItemsPage() {
                 onChange={(e) => setUnit(e.target.value)}
                 required
                 placeholder='e.g., pcs, kg, box'
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition duration-150 ease-in-out hover:border-indigo-300"
               />
             </div>
             {/* Base Price */}
             <div>
-              <label htmlFor="basePrice" className="block text-sm font-medium text-gray-700">Base Price *</label>
+              <label htmlFor="basePrice" className="block text-sm font-medium text-gray-700 mb-1">Base Price *</label>
               <input
                 type="number"
                 id="basePrice"
@@ -204,12 +204,13 @@ function ItemsPage() {
                 value={basePrice}
                 onChange={(e) => setBasePrice(e.target.value)}
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                placeholder="0.00"
+                className="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition duration-150 ease-in-out hover:border-indigo-300"
               />
             </div>
             {/* Current Stock */}
             <div>
-              <label htmlFor="currentStock" className="block text-sm font-medium text-gray-700">Current Stock *</label>
+              <label htmlFor="currentStock" className="block text-sm font-medium text-gray-700 mb-1">Current Stock *</label>
               <input
                 type="number"
                 id="currentStock"
@@ -218,19 +219,21 @@ function ItemsPage() {
                 value={currentStock}
                 onChange={(e) => setCurrentStock(e.target.value)}
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                placeholder="0"
+                className="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition duration-150 ease-in-out hover:border-indigo-300"
               />
             </div>
           </div>
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description (Optional)</label>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
             <textarea
               id="description"
               rows="3"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              placeholder="Enter item description"
+              className="mt-1 block w-full px-4 py-3 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition duration-150 ease-in-out hover:border-indigo-300 resize-none"
             />
           </div>
 

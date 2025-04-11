@@ -162,7 +162,7 @@ const ReceiptTable = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Receipt Management</h1>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 md:flex-row-reverse md:space-x-reverse">
           <button
             onClick={handleExportToExcel}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
