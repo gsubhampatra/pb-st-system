@@ -14,6 +14,39 @@ const PurchaseDetail = ({ purchaseId }) => {
       return response.data;
     }
   });
+
+  const handleOpenThermalPrintApp = () => {
+    const escposCommands = `
+        [C]<b>Patra Bhandar</b>\n
+        [C]PURCHASE INVOICE\n
+        Invoice No: ${purchase.invoiceNo}\n
+        Date: ${format(new Date(purchase.date), 'dd/MM/yyyy')}\n
+        Supplier: ${purchase.supplier?.name || ''}\n
+        ------------------------------\n
+        ${purchase.items
+        .map(
+          (item, i) =>
+            `${i + 1}. ${item.item.name.split('-')[0].trim()} ${item.quantity} x ${item.unitPrice.toFixed(2)} = ${(item.quantity * item.unitPrice).toFixed(2)}`
+        )
+        .join('\n')}
+        ------------------------------\n
+        Total: ₹${purchase.totalAmount.toFixed(2)}\n
+        Paid: ₹${purchase.paidAmount.toFixed(2)}\n
+        Due: ₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}\n
+        ------------------------------\n
+        Contact: 7847916571\n
+        Thank you!\n
+      `;
+
+    const base64Data = btoa(unescape(encodeURIComponent(escposCommands)));
+    const rawbtUri = `intent://print/#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;S.data=${base64Data};end`;
+
+    window.location.href = rawbtUri;
+
+
+  };
+
+
   const handleThermalPrint = () => {
     const content = `
       <html>
@@ -98,7 +131,7 @@ const PurchaseDetail = ({ purchaseId }) => {
       .join('\n');
 
     return encodeURIComponent(
-      `🧾 Patra Bhandar\nInvoice No: ${purchase.invoiceNo}\nDate: ${format(new Date(purchase.date), 'dd/MM/yyyy')}\nSupplier: ${purchase.supplier?.name}\n\n${items}\n\nTotal: ₹${purchase.totalAmount.toFixed(2)}\nPaid: ₹${purchase.paidAmount.toFixed(2)}\nDue: ₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}\n\nContact: ${purchase.supplier?.phone || 'N/A'}`
+      `🧾 Patra Bhandar\nInvoice No: ${purchase.invoiceNo}\nDate: ${format(new Date(purchase.date), 'dd/MM/yyyy')}\nSupplier: ${purchase.supplier?.name}\n\n${items}\n\nTotal: ₹${purchase.totalAmount.toFixed(2)}\nPaid: ₹${purchase.paidAmount.toFixed(2)}\nDue: ₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}\n\nContact: 7847916571`
     );
   };
   const handleWhatsAppShare = () => {
@@ -145,6 +178,12 @@ const PurchaseDetail = ({ purchaseId }) => {
           className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded-md text-sm"
         >
           Share via SMS
+        </button>
+        <button
+          onClick={handleOpenThermalPrintApp}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm"
+        >
+          Print
         </button>
       </div>
 

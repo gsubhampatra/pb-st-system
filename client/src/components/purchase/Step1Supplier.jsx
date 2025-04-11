@@ -14,8 +14,8 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
   const [newSupplierAddress, setNewSupplierAddress] = useState('');
 
   // Use supplier context instead of local state
-  const { 
-    suppliers: suppliersData, 
+  const {
+    suppliers: suppliersData,
     isLoading: isLoadingSuppliers,
     searchTerm,
     setSearchTerm
@@ -35,8 +35,8 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
       setNewSupplierName(''); setNewSupplierPhone(''); setNewSupplierAddress(''); // Clear form
     },
     onError: (error) => {
-        console.error("Error creating supplier:", error);
-        // Handle error display to user
+      console.error("Error creating supplier:", error);
+      // Handle error display to user
     }
   });
 
@@ -44,15 +44,15 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
     e.preventDefault();
     if (!newSupplierName.trim()) return; // Basic validation
     createSupplier({
-        name: newSupplierName,
-        phone: newSupplierPhone,
-        address: newSupplierAddress
+      name: newSupplierName,
+      phone: newSupplierPhone,
+      address: newSupplierAddress
     });
   };
 
   const handleSelect = (supplier) => {
     if (supplier) {
-        onSupplierSelect(supplier);
+      onSupplierSelect(supplier);
     }
   }
 
@@ -72,25 +72,23 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
         displayValue={(supplier) => supplier ? `${supplier.name} (${supplier.phone || 'No phone'})` : ''}
       />
 
-       {/* --- Option to Create New --- */}
-       {!currentSupplier && searchTerm && !isLoadingSuppliers && !suppliersData?.length && (
-            <button
-                type="button"
-                onClick={() => setShowCreateForm(true)}
-                className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
-            >
-                Supplier not found. Create new?
-            </button>
-       )}
-       {!currentSupplier && !searchTerm && (
-         <button
-            type="button"
-            onClick={() => setShowCreateForm(true)}
-            className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
-          >
-            Or Create a New Supplier
-         </button>
-       )}
+      {/* --- Option to Create New --- */}
+      <button
+        type="button"
+        onClick={() => setShowCreateForm(true)}
+        className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+      >
+        Supplier not found. Create new?
+      </button>
+      {!currentSupplier && !searchTerm && (
+        <button
+          type="button"
+          onClick={() => setShowCreateForm(true)}
+          className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
+        >
+          Or Create a New Supplier
+        </button>
+      )}
 
 
       {/* --- Create Supplier Form (Conditional) --- */}
@@ -117,27 +115,27 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
               id="newSupplierPhone"
               value={newSupplierPhone}
               onChange={(e) => setNewSupplierPhone(e.target.value)}
-               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>
-           <div>
+          <div>
             <label htmlFor="newSupplierAddress" className="block text-sm font-medium text-gray-700">Address</label>
             <textarea
               id="newSupplierAddress"
               rows="2"
               value={newSupplierAddress}
               onChange={(e) => setNewSupplierAddress(e.target.value)}
-               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>
           <div className="flex justify-end gap-2">
-             <button
-                type="button"
-                onClick={() => setShowCreateForm(false)}
-                className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancel
-              </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateForm(false)}
+              className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Cancel
+            </button>
             <button
               type="submit"
               disabled={isCreatingSupplier}
@@ -149,7 +147,7 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
         </form>
       )}
 
-        {/* --- Navigation --- */}
+      {/* --- Navigation --- */}
       <div className="flex justify-end pt-4">
         <button
           type="button"

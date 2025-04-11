@@ -16,6 +16,7 @@ import { CustomerProvider } from './contexts/CustomerContext';
 import { SupplierProvider } from './contexts/SupplierContext';
 import { ItemProvider } from './contexts/ItemContext';
 import ReportsPage from './components/reports/ReportsPage';
+import PurchaseInvoice from './components/purchase/PurchaseInvoice';
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
                   {/* Purchase Routes */}
                   <Route path="/purchases" element={<PurchaseTable />} />
                   <Route path="/purchases/new" element={<PurchaseForm />} />
+                  <Route path="/purchases/invoice/:purchaseId" element={<PurchaseInvoice />} />
 
                   {/* Sales Routes */}
                   <Route path="/sales/*" element={<SalesPage />} />

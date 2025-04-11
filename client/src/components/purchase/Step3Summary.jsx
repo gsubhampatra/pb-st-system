@@ -1,11 +1,9 @@
-// src/features/purchase/Step3Summary.jsx
 import React from 'react';
 import { FaPrint } from 'react-icons/fa'; // Example icon
 
 const STATUS_OPTIONS = [
   { value: 'recorded', label: 'Recorded (Unpaid/Partially Paid)' },
   { value: 'paid', label: 'Paid in Full' },
-  // Add other statuses if needed: 'cancelled', etc.
 ];
 
 function Step3Summary({
@@ -22,6 +20,12 @@ function Step3Summary({
   submitError, // Error state for submission
 }) {
 
+  const handleSubmit = (shouldPrint) => {
+    onSubmit(shouldPrint);
+  };
+
+
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-semibold text-gray-800">Step 3: Summary and Save</h2>
@@ -34,10 +38,9 @@ function Step3Summary({
         </div>
       )}
 
-
       {/* --- Summary Details --- */}
       <div className="p-4 border rounded-md bg-white space-y-4">
-       
+
         <div>
           <h3 className="font-medium text-gray-700">Supplier:</h3>
           <p className="text-sm text-gray-600">{selectedSupplier?.name || 'N/A'} ({selectedSupplier?.phone || 'No phone'})</p>
@@ -113,7 +116,7 @@ function Step3Summary({
           {/* Save Button */}
           <button
             type="button"
-            onClick={() => onSubmit(false)} // Pass false for print flag
+            onClick={() => handleSubmit(false)} // Use our new handler
             disabled={isSubmitting || purchaseItems.length === 0 || !selectedSupplier}
             className="ml-3 inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
@@ -122,7 +125,7 @@ function Step3Summary({
           {/* Save and Print Button */}
           <button
             type="button"
-            onClick={() => onSubmit(true)} // Pass true for print flag
+            onClick={() => handleSubmit(true)} // Use our new handler with print=true
             disabled={isSubmitting || purchaseItems.length === 0 || !selectedSupplier}
             className="ml-3 inline-flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
           >
@@ -131,6 +134,7 @@ function Step3Summary({
           </button>
         </div>
       </div>
+
     </div>
   );
 }

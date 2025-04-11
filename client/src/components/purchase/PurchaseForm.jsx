@@ -1,10 +1,10 @@
-// src/features/purchase/PurchaseForm.jsx
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Step1Supplier from './Step1Supplier';
 import Step2Items from './Step2Items';
 import Step3Summary from './Step3Summary';
 import { api, API_PATHS } from '../../api';
+import { useNavigate } from 'react-router-dom';
 
 function PurchaseForm() {
   const queryClient = useQueryClient();
@@ -14,6 +14,7 @@ function PurchaseForm() {
   const [status, setStatus] = useState('recorded'); // Default status
   const [paidAmount, setPaidAmount] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
+  const router = useNavigate();
 
   // --- Calculate Total Amount ---
   useEffect(() => {
@@ -64,18 +65,13 @@ function PurchaseForm() {
     mutationFn: (purchaseData) => api.post(API_PATHS.purchases.create, purchaseData),
     onSuccess: (data, variables) => { // data = created purchase, variables = submitted data
       console.log('Purchase created successfully:', data);
-      alert('Purchase created successfully!');
       queryClient.invalidateQueries(['purchases']); // Invalidate purchase list cache
       queryClient.invalidateQueries(['items']); // Invalidate items cache (stock changed)
       queryClient.invalidateQueries(['stockTransactions']); // Invalidate stock transactions
 
-      // Handle print action
       if (variables.shouldPrint) {
-        // Give a slight delay for UI updates if needed, then print
-        setTimeout(() => {
-          console.log("Triggering print...");
-          window.print(); // Or trigger specific print logic
-        }, 100);
+        router(`/purchases/invoice/${data.data.id}`); // Redirect to print page
+
       }
 
       // Reset form state
