@@ -76,6 +76,9 @@ export const API_PATHS = {
     getDownloadHistory: "/reports/history",
     getSummary: "/reports/summary",
   },
+  print: {
+    printInvoice: `/print/purchase`,
+  },
 };
 
 // Example function to add query parameters (optional helper)

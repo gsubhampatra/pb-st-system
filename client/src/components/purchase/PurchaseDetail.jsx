@@ -3,6 +3,7 @@ import { api, API_PATHS } from '../../api';
 import { FiPrinter } from 'react-icons/fi';
 import { useRef } from 'react';
 import { format } from 'date-fns';
+import PrintButton from '../PrintButton';
 
 const PurchaseDetail = ({ purchaseId }) => {
   const previewRef = useRef();
@@ -211,12 +212,7 @@ const PurchaseDetail = ({ purchaseId }) => {
         >
           Share via SMS
         </button>
-        <button
-          onClick={handleWebBluetoothPrint}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md text-sm"
-        >
-          Print
-        </button>
+       <PrintButton data={purchase} />
       </div>
 
       {/* Invoice Preview */}
