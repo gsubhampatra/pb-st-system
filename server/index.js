@@ -37,6 +37,6 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/print", printRoutes);
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
+app.listen(port,  () => {
   console.log(`Server is running on port ${port}`);
 });
