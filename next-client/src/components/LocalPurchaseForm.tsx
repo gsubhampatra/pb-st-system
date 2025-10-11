@@ -1,8 +1,9 @@
+"use client";
 export interface Supplier {
   id: number;
   name: string;
   phone: string;
-  village: string;
+  address: string;
 }
 
 export interface PurchaseItem {
@@ -10,33 +11,29 @@ export interface PurchaseItem {
   name: string;
   quantity: number;
   price: string;
+  itemId?: string | number | null;
 }
 
 export type PaymentMode = "cash" | "online";
 
 // components/LocalPurchaseForm.tsx
-import React, { useState, useRef } from "react";
-import {
-  Search,
-  Plus,
-  X,
-  Printer,
-  MessageSquare,
-  Send,
-  Eye,
-} from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Printer, MessageSquare, Send, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
-const ITEM_OPTIONS = [
+import { api, API_PATHS } from "@/lib/api";
+import SupplierSection from "./purchase/SupplierSection";
+import ItemEntry from "./purchase/ItemEntry";
+import ItemsList from "./purchase/ItemsList";
+import PaymentSection from "./purchase/PaymentSection";
+import PreviewDialog from "./purchase/PreviewDialog";
+import { useSuppliers } from "@/lib/queries/useSuppliers";
+import { useItems, useItemSearch } from "@/lib/queries/useItems";
+import { useAccounts } from "@/lib/queries/useAccounts";
+// fallback local item names
+const ITEM_OPTIONS: string[] = [
   "BIRI",
   "BROKEN RICE",
   "MOONG",
@@ -44,12 +41,10 @@ const ITEM_OPTIONS = [
   "RICE",
   "TIL",
 ];
+import { useRouter } from "next/navigation";
 
 const LocalPurchaseForm: React.FC = () => {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([
-    { id: 1, name: "Ram Kumar", phone: "9876543210", village: "Rampur" },
-    { id: 2, name: "Shyam Singh", phone: "9876543211", village: "Shyampur" },
-  ]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [showSupplierForm, setShowSupplierForm] = useState<boolean>(false);
   const [searchSupplier, setSearchSupplier] = useState<string>("");
@@ -60,15 +55,19 @@ const LocalPurchaseForm: React.FC = () => {
   const [newSupplier, setNewSupplier] = useState<Omit<Supplier, "id">>({
     name: "",
     phone: "",
-    village: "",
+    address: "",
   });
   const [date, setDate] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
   const [invoiceNo, setInvoiceNo] = useState<string>("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
+  const [paidCash, setPaidCash] = useState<string>("");
+  const [paidOnline, setPaidOnline] = useState<string>("");
 
   const [items, setItems] = useState<PurchaseItem[]>([]);
+  // local map for itemName => last entered price
+  const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
   const [currentItem, setCurrentItem] = useState<{
     name: string;
     quantity: string;
@@ -84,31 +83,101 @@ const LocalPurchaseForm: React.FC = () => {
   const supplierSearchRef = useRef<HTMLInputElement | null>(null);
   const itemSearchRef = useRef<HTMLInputElement | null>(null);
   const quantityRef = useRef<HTMLInputElement | null>(null);
+  const router = useRouter();
 
-  const filteredSuppliers = suppliers.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchSupplier.toLowerCase()) ||
-      s.phone.includes(searchSupplier) ||
-      s.village.toLowerCase().includes(searchSupplier.toLowerCase())
-  );
+  // fetched items from server for selection (search results)
+  const [serverItemResults, setServerItemResults] = useState<any[]>([]);
+  const [itemNameToId, setItemNameToId] = useState<
+    Record<string, string | number>
+  >({});
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<
+    string | number | null
+  >(null);
 
-  const filteredItems = ITEM_OPTIONS.filter((item) =>
-    item.toLowerCase().includes(searchItem.toLowerCase())
-  );
+
+  // normalize visible items for dropdown: prefer server results, otherwise fallback to static options
+  const visibleItems =
+    serverItemResults && serverItemResults.length > 0
+      ? serverItemResults
+          .filter((i: any) =>
+            i.name.toLowerCase().includes(searchItem.toLowerCase())
+          )
+          .slice(0, 8) // limit to first 8
+      : ITEM_OPTIONS.filter((name) =>
+          name.toLowerCase().includes(searchItem.toLowerCase())
+        )
+          .map((name) => ({ name }))
+          .slice(0, 8);
+
+  // preload invoice number on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const next = await generateInvoiceNo();
+        setInvoiceNo(next);
+      } catch (err) {
+        // ignore
+      }
+    })();
+  }, []);
+
+  // use react-query hooks to fetch suppliers, items and accounts
+  const suppliersQuery = useSuppliers({ page: 1, limit: 200 });
+  const itemsQuery = useItems({ page: 1, limit: 200 });
+  const accountsQuery = useAccounts({ page: 1, limit: 50 });
+
+  // wire results into local state when queries return
+  useEffect(() => {
+    if (suppliersQuery.data) setSuppliers(suppliersQuery.data);
+  }, [suppliersQuery.data]);
+
+  useEffect(() => {
+    if (itemsQuery.data) {
+      setServerItemResults(itemsQuery.data);
+      const priceMap: Record<string, string> = {};
+      const nameToId: Record<string, string | number> = {};
+      for (const it of itemsQuery.data) {
+        if (it.name) nameToId[it.name] = it.id;
+        if (typeof it.basePrice !== "undefined")
+          priceMap[it.name] = String(it.basePrice);
+      }
+      setItemPrices((p) => ({ ...p, ...priceMap }));
+      setItemNameToId((m) => ({ ...m, ...nameToId }));
+    }
+  }, [itemsQuery.data]);
+
+  useEffect(() => {
+    if (accountsQuery.data) setAccounts(accountsQuery.data);
+  }, [accountsQuery.data]);
+
+  // hook for searching items
+  const itemSearchQuery = useItemSearch(searchItem);
+  useEffect(() => {
+    if (itemSearchQuery.data) setServerItemResults(itemSearchQuery.data);
+  }, [itemSearchQuery.data]);
 
   const getStoredPrice = (itemName: string): string => {
-    const existingItem = items.find((i) => i.name === itemName);
+    if (itemPrices[itemName]) return itemPrices[itemName];
+    const existingItem = items.find((i) => i.name === itemName && i.price);
     return existingItem ? existingItem.price : "";
   };
 
-  const handleAddSupplier = (): void => {
+  const handleAddSupplier = async (): Promise<void> => {
     if (newSupplier.name && newSupplier.phone) {
-      const supplier: Supplier = { ...newSupplier, id: Date.now() };
-      setSuppliers([...suppliers, supplier]);
-      setSelectedSupplier(supplier);
-      setNewSupplier({ name: "", phone: "", village: "" });
-      setShowSupplierForm(false);
-      setSearchSupplier(supplier.name);
+      try {
+        // create supplier on server
+        const resp = await api.post(API_PATHS.suppliers.create, newSupplier);
+        const supplier: Supplier = resp.data;
+        setSuppliers((prev) => [...prev, supplier]);
+        setSelectedSupplier(supplier);
+        setNewSupplier({ name: "", phone: "", address: "" });
+        setShowSupplierForm(false);
+        setSearchSupplier(supplier.name);
+      } catch (err) {
+        console.error(err);
+        alert("Failed to create supplier on server.");
+      }
     }
   };
 
@@ -119,10 +188,15 @@ const LocalPurchaseForm: React.FC = () => {
         name: currentItem.name,
         quantity: parseFloat(currentItem.quantity),
         price: getStoredPrice(currentItem.name) || "",
+        itemId: itemNameToId[currentItem.name] ?? null,
       };
       setItems(
         [...items, newItem].sort((a, b) => a.name.localeCompare(b.name))
       );
+      // set item price map so future items auto-fill
+      if (newItem.price) {
+        setItemPrices((p) => ({ ...p, [newItem.name]: newItem.price }));
+      }
       setCurrentItem({ name: "", quantity: "" });
       setSearchItem("");
       itemSearchRef.current?.focus();
@@ -130,7 +204,13 @@ const LocalPurchaseForm: React.FC = () => {
   };
 
   const handlePriceChange = (id: number, price: string): void => {
-    setItems(items.map((item) => (item.id === id ? { ...item, price } : item)));
+    const changed = items.map((item) =>
+      item.id === id ? { ...item, price } : item
+    );
+    setItems(changed);
+    // update price map for that item name
+    const found = changed.find((i) => i.id === id);
+    if (found) setItemPrices((p) => ({ ...p, [found.name]: price }));
   };
 
   const handleRemoveItem = (id: number): void => {
@@ -138,10 +218,12 @@ const LocalPurchaseForm: React.FC = () => {
   };
 
   const calculateTotal = (): number => {
-    return items.reduce((sum, item) => {
-      const price = parseFloat(item.price) || 0;
-      return sum + item.quantity * price;
-    }, 0);
+    return Math.round(
+      items.reduce((sum, item) => {
+        const price = parseFloat(item.price) || 0;
+        return sum + item.quantity * price;
+      }, 0)
+    );
   };
 
   const handleKeyPress = (
@@ -162,11 +244,7 @@ const LocalPurchaseForm: React.FC = () => {
 
   const handleWhatsApp = (): void => {
     if (!selectedSupplier) return;
-    const message = encodeURIComponent(
-      `Purchase Invoice #${invoiceNo}\nDate: ${date}\nSupplier: ${
-        selectedSupplier.name
-      }\nTotal Amount: ₹${calculateTotal().toFixed(2)}`
-    );
+    const message = encodeURIComponent(generateMessage());
     window.open(
       `https://wa.me/${selectedSupplier.phone}?text=${message}`,
       "_blank"
@@ -175,12 +253,182 @@ const LocalPurchaseForm: React.FC = () => {
 
   const handleSMS = (): void => {
     if (!selectedSupplier) return;
-    const message = encodeURIComponent(
-      `Purchase Invoice #${invoiceNo}\nDate: ${date}\nTotal: ₹${calculateTotal().toFixed(
-        2
-      )}`
-    );
+    const message = encodeURIComponent(generateMessage());
     window.open(`sms:${selectedSupplier.phone}?body=${message}`, "_blank");
+  };
+
+  const handleSave = async () => {
+    if (!selectedSupplier) {
+      alert("Please select or create a supplier before saving.");
+      return;
+    }
+    if (items.length === 0) {
+      alert("Please add at least one item.");
+      return;
+    }
+
+    const total = calculateTotal();
+
+    // Ensure all items exist on server and collect properly typed items for payload
+    const itemsForPayload: Array<{
+      itemId: string | number;
+      name?: string;
+      quantity: number;
+      unitPrice: number;
+    }> = [];
+
+    for (const it of items) {
+      let serverItemId = it.itemId ?? itemNameToId[it.name] ?? null;
+      // If we don't have a server id (or it's a numeric local id), create the item on server
+      if (!serverItemId || typeof serverItemId !== "string") {
+        try {
+          const createResp = await api.post(API_PATHS.items.create, {
+            name: it.name,
+            unit: "kg",
+            basePrice: parseFloat(it.price || "0") || 0,
+            currentStock: 0,
+          });
+          const createdItem = createResp.data;
+          serverItemId = createdItem.id;
+          // update maps/state
+          setItemNameToId((m) => ({ ...m, [it.name]: serverItemId }));
+          setServerItemResults((prev) => [...(prev || []), createdItem]);
+        } catch (err) {
+          console.error("Failed to create item on server:", err);
+          throw err;
+        }
+      }
+
+      itemsForPayload.push({
+        itemId: serverItemId,
+        name: it.name,
+        quantity: Number(it.quantity),
+        unitPrice: parseFloat(it.price || "0") || 0,
+      });
+    }
+
+    const payload = {
+      supplierId: String(selectedSupplier.id),
+      date,
+      items: itemsForPayload,
+      totalAmount: total,
+      paidAmount: parseFloat(paidCash || "0") + parseFloat(paidOnline || "0"),
+      status:
+        total - (parseFloat(paidCash || "0") + parseFloat(paidOnline || "0")) <=
+        0
+          ? "paid"
+          : "recorded",
+      invoiceNo,
+    };
+
+    try {
+      // Client-side validation: ensure payload items are valid
+      for (const it of itemsForPayload) {
+        if (!it.itemId) {
+          alert(
+            `Missing server item id for item "${it.name}". Please create/select the item.`
+          );
+          return;
+        }
+        if (!Number.isFinite(it.quantity) || it.quantity <= 0) {
+          alert(`Invalid quantity for item "${it.name}". Enter a number > 0.`);
+          return;
+        }
+        if (!Number.isFinite(it.unitPrice) || it.unitPrice < 0) {
+          alert(`Invalid price for item "${it.name}". Enter a number >= 0.`);
+          return;
+        }
+      }
+      const resp = await api.post(API_PATHS.purchases.create, payload);
+      const created = resp.data;
+
+      const paidCashNum = parseFloat(paidCash || "0");
+      const paidOnlineNum = parseFloat(paidOnline || "0");
+      if (paidCashNum > 0) {
+        await api.post(API_PATHS.payments.create, {
+          supplierId: selectedSupplier.id,
+          amount: paidCashNum,
+          method: "cash",
+          date,
+        });
+      }
+      if (paidOnlineNum > 0) {
+        await api.post(API_PATHS.payments.create, {
+          supplierId: selectedSupplier.id,
+          amount: paidOnlineNum,
+          method: "account",
+          date,
+          ...(selectedAccountId ? { accountId: selectedAccountId } : {}),
+        });
+      }
+
+      // store preview payload and created response
+      sessionStorage.setItem(
+        "purchasePreview",
+        JSON.stringify({ payload, created })
+      );
+      router.push("/purchase/preview");
+    } catch (err: any) {
+      // Improved error logging: show server response body when available
+      const serverData = err?.response?.data;
+      console.error("Purchase save error:", err, serverData);
+      const msg =
+        serverData?.message ||
+        serverData?.error ||
+        err?.message ||
+        "Unknown error";
+      alert("Error saving purchase: " + msg);
+    }
+  };
+
+  function generateMessage() {
+    const lines = [] as string[];
+    lines.push(`Invoice #: ${invoiceNo}`);
+    lines.push(`Date: ${date}`);
+    if (selectedSupplier) lines.push(`Supplier: ${selectedSupplier.name}`);
+    lines.push("Items:");
+    for (const it of items) {
+      lines.push(
+        `${it.name} x ${it.quantity} @ ₹${parseFloat(it.price || "0").toFixed(
+          2
+        )} = ₹${(it.quantity * parseFloat(it.price || "0")).toFixed(2)}`
+      );
+    }
+    lines.push(`Total: ₹${calculateTotal().toFixed(2)}`);
+    return lines.join("\n");
+  }
+
+  async function generateInvoiceNo(): Promise<string> {
+    try {
+      const resp = await api.get(API_PATHS.purchases.getAll, {
+        params: { page: 1, limit: 1 },
+      });
+      const data = resp.data?.data || [];
+      const last = data[0];
+      const today = new Date();
+      const year = today.getFullYear().toString().slice(2);
+      const month = (today.getMonth() + 1).toString().padStart(2, "0");
+      const day = today.getDate().toString().padStart(2, "0");
+      const prefix = `${year}${month}${day}`;
+      if (last && last.invoiceNo && last.invoiceNo.startsWith(prefix)) {
+        const suffix = parseInt(last.invoiceNo.slice(6), 10) || 0;
+        const next = (suffix + 1).toString().padStart(4, "0");
+        return `${prefix}${next}`;
+      }
+      return `${prefix}0001`;
+    } catch (err) {
+      const today = new Date();
+      const year = today.getFullYear().toString().slice(2);
+      const month = (today.getMonth() + 1).toString().padStart(2, "0");
+      const day = today.getDate().toString().padStart(2, "0");
+      return `${year}${month}${day}0001`;
+    }
+  }
+
+  // when ItemEntry calls onSearchInput, update searchItem to trigger useItemSearch
+  const onSearchInput = (q: string) => {
+    setSearchItem(q);
+    if (!q || q.length < 1) setServerItemResults([]);
   };
 
   return (
@@ -196,110 +444,19 @@ const LocalPurchaseForm: React.FC = () => {
 
         <div className="p-4 sm:p-6 space-y-6">
           {/* Supplier Section */}
-          <div className="space-y-3">
-            <Label>Supplier Details</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-              <Input
-                ref={supplierSearchRef}
-                placeholder="Search supplier by name, phone or village..."
-                className="pl-10"
-                value={searchSupplier}
-                onChange={(e) => {
-                  setSearchSupplier(e.target.value);
-                  setSelectedSupplier(null);
-                }}
-                onKeyPress={(e) => handleKeyPress(e, itemSearchRef)}
-              />
-            </div>
-
-            {searchSupplier && !selectedSupplier && (
-              <Card>
-                <CardContent className="p-0 max-h-48 overflow-y-auto">
-                  {filteredSuppliers.map((supplier) => (
-                    <div
-                      key={supplier.id}
-                      className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
-                      onClick={() => {
-                        setSelectedSupplier(supplier);
-                        setSearchSupplier(supplier.name);
-                      }}
-                    >
-                      <div className="font-semibold text-gray-900">
-                        {supplier.name}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {supplier.phone} • {supplier.village}
-                      </div>
-                    </div>
-                  ))}
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2"
-                    onClick={() => setShowSupplierForm(true)}
-                  >
-                    <Plus className="h-4 w-4" /> Add New Supplier
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {showSupplierForm && (
-              <Card className="border-blue-200 bg-blue-50">
-                <CardContent className="pt-6 space-y-3">
-                  <Input
-                    placeholder="Supplier Name"
-                    value={newSupplier.name}
-                    onChange={(e) =>
-                      setNewSupplier({ ...newSupplier, name: e.target.value })
-                    }
-                  />
-                  <Input
-                    type="tel"
-                    placeholder="Phone Number"
-                    value={newSupplier.phone}
-                    onChange={(e) =>
-                      setNewSupplier({ ...newSupplier, phone: e.target.value })
-                    }
-                  />
-                  <Input
-                    placeholder="Village"
-                    value={newSupplier.village}
-                    onChange={(e) =>
-                      setNewSupplier({
-                        ...newSupplier,
-                        village: e.target.value,
-                      })
-                    }
-                  />
-                  <div className="flex gap-2">
-                    <Button className="flex-1" onClick={handleAddSupplier}>
-                      Add Supplier
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowSupplierForm(false)}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {selectedSupplier && (
-              <Card className="bg-green-50 border-green-200">
-                <CardContent className="pt-4">
-                  <div className="font-semibold text-green-900">
-                    {selectedSupplier.name}
-                  </div>
-                  <div className="text-sm text-green-700">
-                    {selectedSupplier.phone} • {selectedSupplier.village}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <SupplierSection
+            suppliers={suppliers}
+            searchSupplier={searchSupplier}
+            setSearchSupplier={setSearchSupplier}
+            selectedSupplier={selectedSupplier}
+            setSelectedSupplier={setSelectedSupplier}
+            showSupplierForm={showSupplierForm}
+            setShowSupplierForm={setShowSupplierForm}
+            newSupplier={newSupplier}
+            setNewSupplier={setNewSupplier}
+            handleAddSupplier={handleAddSupplier}
+            supplierSearchRef={supplierSearchRef}
+          />
 
           {/* Date and Invoice */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -322,157 +479,44 @@ const LocalPurchaseForm: React.FC = () => {
           </div>
 
           {/* Items Entry */}
-          <div className="space-y-3">
-            <Label>Add Items</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2 relative">
-                <Input
-                  ref={itemSearchRef}
-                  placeholder="Search item..."
-                  value={searchItem}
-                  onChange={(e) => {
-                    setSearchItem(e.target.value);
-                    setShowItemDropdown(true);
-                  }}
-                  onFocus={() => setShowItemDropdown(true)}
-                  onKeyPress={(e) => {
-                    if (e.key === "Enter" && filteredItems.length > 0) {
-                      e.preventDefault();
-                      setCurrentItem({
-                        ...currentItem,
-                        name: filteredItems[0],
-                      });
-                      setSearchItem(filteredItems[0]);
-                      setShowItemDropdown(false);
-                      quantityRef.current?.focus();
-                    }
-                  }}
-                />
-                {showItemDropdown && searchItem && (
-                  <Card className="absolute z-10 w-full mt-1 shadow-lg max-h-48 overflow-y-auto">
-                    <CardContent className="p-0">
-                      {filteredItems.map((item) => (
-                        <div
-                          key={item}
-                          className="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-b-0"
-                          onClick={() => {
-                            setCurrentItem({ ...currentItem, name: item });
-                            setSearchItem(item);
-                            setShowItemDropdown(false);
-                            quantityRef.current?.focus();
-                          }}
-                        >
-                          {item}
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-              <Input
-                ref={quantityRef}
-                type="number"
-                step="0.01"
-                placeholder="Quantity"
-                value={currentItem.quantity}
-                onChange={(e) =>
-                  setCurrentItem({ ...currentItem, quantity: e.target.value })
-                }
-                onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddItem();
-                  }
-                }}
-              />
-            </div>
-            <Button className="w-full gap-2" onClick={handleAddItem}>
-              <Plus className="h-5 w-5" /> Add Item
-            </Button>
-          </div>
+          <ItemEntry
+            currentItem={currentItem}
+            setCurrentItem={setCurrentItem}
+            searchItem={searchItem}
+            setSearchItem={setSearchItem}
+            serverItemResults={serverItemResults}
+            visibleItems={visibleItems}
+            showItemDropdown={showItemDropdown}
+            setShowItemDropdown={setShowItemDropdown}
+            itemSearchRef={itemSearchRef}
+            quantityRef={quantityRef}
+            handleServerItemSearch={onSearchInput}
+            handleAddItem={handleAddItem}
+          />
 
           {/* Items List */}
           {items.length > 0 && (
-            <div className="space-y-3">
-              <Label>Items List</Label>
-              <Card>
-                <CardContent className="p-0">
-                  <div className="max-h-64 overflow-y-auto">
-                    {items.map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-3 border-b last:border-b-0 bg-gray-50"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex-1">
-                            <div className="font-semibold text-gray-900">
-                              {item.name}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Qty: {item.quantity}
-                            </div>
-                          </div>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="Price"
-                            className="w-24"
-                            value={item.price}
-                            onChange={(e) =>
-                              handlePriceChange(item.id, e.target.value)
-                            }
-                          />
-                          <div className="font-semibold text-gray-900 w-20 text-right">
-                            ₹
-                            {(
-                              item.quantity * (parseFloat(item.price) || 0)
-                            ).toFixed(2)}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-600 hover:bg-red-50"
-                            onClick={() => handleRemoveItem(item.id)}
-                          >
-                            <X className="h-5 w-5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="p-4 bg-blue-600 text-white">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold">Total Amount:</span>
-                      <span className="text-2xl font-bold">
-                        ₹{calculateTotal().toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <ItemsList
+              items={items}
+              handlePriceChange={handlePriceChange}
+              handleRemoveItem={handleRemoveItem}
+              calculateTotal={calculateTotal}
+            />
           )}
 
           {/* Payment Mode */}
-          <div className="space-y-3">
-            <Label>Payment Mode</Label>
-            <div className="flex gap-4">
-              <Button
-                variant={paymentMode === "cash" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setPaymentMode("cash")}
-              >
-                Cash
-              </Button>
-              <Button
-                variant={paymentMode === "online" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setPaymentMode("online")}
-              >
-                Online
-              </Button>
-            </div>
-          </div>
+          <PaymentSection
+            paymentMode={paymentMode}
+            setPaymentMode={setPaymentMode}
+            paidCash={paidCash}
+            setPaidCash={setPaidCash}
+            paidOnline={paidOnline}
+            setPaidOnline={setPaidOnline}
+            accounts={accounts}
+            selectedAccountId={selectedAccountId}
+            setSelectedAccountId={setSelectedAccountId}
+            total={calculateTotal()}
+          />
 
           {/* Action Buttons */}
           <div className="space-y-3 pt-4 border-t-2 border-gray-200">
@@ -481,6 +525,16 @@ const LocalPurchaseForm: React.FC = () => {
               onClick={() => setShowPreview(true)}
             >
               <Eye className="h-5 w-5" /> Preview
+            </Button>
+
+            <Button
+              className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700"
+              onClick={async () => {
+                // Save and open preview
+                await handleSave();
+              }}
+            >
+              Save & Open Preview
             </Button>
 
             <div className="grid grid-cols-2 gap-3">
@@ -509,104 +563,16 @@ const LocalPurchaseForm: React.FC = () => {
       </div>
 
       {/* Preview Dialog */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex justify-between items-center">
-              Purchase Invoice
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowPreview(false)}
-              >
-                <X className="h-6 w-6" />
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 p-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm text-gray-600">Invoice No:</div>
-                <div className="font-semibold">{invoiceNo}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-600">Date:</div>
-                <div className="font-semibold">{date}</div>
-              </div>
-            </div>
-
-            {selectedSupplier && (
-              <Card className="bg-gray-50">
-                <CardContent className="pt-4">
-                  <div className="text-sm text-gray-600">Supplier Details:</div>
-                  <div className="font-semibold text-lg">
-                    {selectedSupplier.name}
-                  </div>
-                  <div className="text-gray-700">{selectedSupplier.phone}</div>
-                  <div className="text-gray-700">
-                    {selectedSupplier.village}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <div>
-              <div className="text-sm text-gray-600 mb-2">Items:</div>
-              <table className="w-full">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="text-left p-2">Item</th>
-                    <th className="text-right p-2">Qty</th>
-                    <th className="text-right p-2">Rate</th>
-                    <th className="text-right p-2">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="p-2">{item.name}</td>
-                      <td className="text-right p-2">{item.quantity}</td>
-                      <td className="text-right p-2">
-                        ₹{parseFloat(item.price || "0").toFixed(2)}
-                      </td>
-                      <td className="text-right p-2 font-semibold">
-                        ₹
-                        {(
-                          item.quantity * (parseFloat(item.price) || 0)
-                        ).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-blue-600 text-white">
-                  <tr>
-                    <td colSpan={3} className="p-3 text-right font-bold">
-                      Total:
-                    </td>
-                    <td className="p-3 text-right font-bold text-lg">
-                      ₹{calculateTotal().toFixed(2)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <Card className="bg-gray-50">
-              <CardContent className="pt-4">
-                <div className="text-sm text-gray-600">Payment Mode:</div>
-                <div className="font-semibold text-lg capitalize">
-                  {paymentMode}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Button className="w-full" onClick={() => setShowPreview(false)}>
-              Close Preview
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <PreviewDialog
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        invoiceNo={invoiceNo}
+        date={date}
+        supplier={selectedSupplier}
+        items={items}
+        total={calculateTotal()}
+        onPrint={handlePrint}
+      />
     </div>
   );
 };
