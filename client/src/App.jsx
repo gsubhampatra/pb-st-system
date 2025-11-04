@@ -3,6 +3,7 @@ import { Routes, Route, Link } from 'react-router-dom';
 import PurchaseForm from './components/purchase/PurchaseForm';
 import ItemsPage from './components/items/ItemsPage';
 import CustomerTable from './components/customer/CustomerTable';
+import SupplierTable from './components/suppliers/SupplierTable';
 import PurchaseTable from './components/purchase/PurchaseTable';
 import SalesPage from './components/sales/SalesPage';
 import Navbar from './components/Navbar';
@@ -12,24 +13,27 @@ import PaymentTable from './components/payments/PaymentTable';
 import PaymentForm from './components/payments/PaymentForm';
 import ReceiptTable from './components/receipt/ReceiptTable';
 import ReceiptForm from './components/receipt/ReceiptForm';
+import DatabasePage from './components/database/DatabasePage';
 import { CustomerProvider } from './contexts/CustomerContext';
 import { SupplierProvider } from './contexts/SupplierContext';
 import { ItemProvider } from './contexts/ItemContext';
 import ReportsPage from './components/reports/ReportsPage';
 import PurchaseInvoice from './components/purchase/PurchaseInvoice';
+import { ToastProvider } from './contexts/ToastContext';
 
 function App() {
   return (
-    <CustomerProvider>
-      <SupplierProvider>
-        <ItemProvider>
-          <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-            <Navbar />
-            {/* Main Content Area */}
-            <main className="flex-1 p-4 md:ml-0">
-              <div className="max-w-7xl mx-auto">
-                {/* Define the Routes */}
-                <Routes>
+    <ToastProvider>
+      <CustomerProvider>
+        <SupplierProvider>
+          <ItemProvider>
+            <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+              <Navbar />
+              {/* Main Content Area */}
+              <main className="flex-1 p-4 md:ml-0">
+                <div className="max-w-7xl mx-auto">
+                  {/* Define the Routes */}
+                  <Routes>
                   {/* Home Page */}
                   <Route path="/" element={<HomePage />} />
 
@@ -44,8 +48,14 @@ function App() {
                   {/* Items Route */}
                   <Route path="/items" element={<ItemsPage />} />
 
+                  {/* Database Management Route */}
+                  <Route path="/database" element={<DatabasePage />} />
+
                   {/* Customers Route */}
                   <Route path="/customers" element={<CustomerTable />} />
+
+                  {/* Suppliers Route */}
+                  <Route path="/suppliers" element={<SupplierTable />} />
 
                   {/* Accounts Route */}
                   <Route path="/accounts" element={<AccountsPage />} />
@@ -67,13 +77,14 @@ function App() {
                       <Link to="/" className="text-blue-600 hover:text-blue-800">Return to Home</Link>
                     </div>
                   } />
-                </Routes>
-              </div>
-            </main>
-          </div>
-        </ItemProvider>
-      </SupplierProvider>
-    </CustomerProvider>
+                  </Routes>
+                </div>
+              </main>
+            </div>
+          </ItemProvider>
+        </SupplierProvider>
+      </CustomerProvider>
+    </ToastProvider>
   );
 }
 

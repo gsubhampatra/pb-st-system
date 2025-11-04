@@ -1,21 +1,20 @@
-// src/routes/supplier.routes.js
 import express from 'express';
 import {
     createSupplier,
-    getSuppliers, // Handles both list and search
+    getSuppliers,
     getSupplierById,
     updateSupplier,
     deleteSupplier
-} from '../controllers/supplier.controller.js'; // Adjust path if needed
+} from '../controllers/supplier.controller.optimized.js';
+import { validate, supplierSchema } from '../middleware/validate.js';
 
 const router = express.Router();
 
-// Define routes for Suppliers
-router.post('/', createSupplier);       // POST /api/suppliers
-router.get('/', getSuppliers);         // GET /api/suppliers (gets all)
-                                       // GET /api/suppliers?search=John (searches)
-router.get('/:id', getSupplierById);   // GET /api/suppliers/some-cuid
-router.put('/:id', updateSupplier);    // PUT /api/suppliers/some-cuid
-router.delete('/:id', deleteSupplier); // DELETE /api/suppliers/some-cuid
+// Define routes for Suppliers with validation
+router.post('/', validate(supplierSchema), createSupplier);
+router.get('/', getSuppliers);
+router.get('/:id', getSupplierById);
+router.put('/:id', validate(supplierSchema), updateSupplier);
+router.delete('/:id', deleteSupplier);
 
 export default router;

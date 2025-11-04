@@ -21,6 +21,7 @@
     "escpos-usb": "^3.0.0-alpha.4",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
+    "joi": "^18.0.1",
     "prisma": "^6.5.0"
   },
   "devDependencies": {

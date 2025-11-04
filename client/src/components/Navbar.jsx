@@ -1,18 +1,19 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
-import { 
-  FiMenu, 
-  FiX, 
-  FiHome, 
-  FiShoppingBag, 
-  FiShoppingCart, 
-  FiPackage, 
-  FiUsers, 
+import {
+  FiMenu,
+  FiX,
+  FiHome,
+  FiShoppingBag,
+  FiShoppingCart,
+  FiPackage,
+  FiUsers,
   FiPlus,
   FiDollarSign,
   FiCreditCard,
   FiFileText,
-  FiChevronLeft
+  FiChevronLeft,
+  FiSettings
 } from 'react-icons/fi';
 
 const Navbar = () => {
@@ -27,16 +28,18 @@ const Navbar = () => {
     { path: '/', label: 'Home', icon: <FiHome size={18} /> },
     { path: '/purchases', label: 'Purchases', icon: <FiShoppingBag size={18} /> },
     { path: '/purchases/new', label: 'New Purchase', icon: <FiPlus size={18} /> },
-    { path: '/sales', label: 'Sales', icon: <FiShoppingCart size={18} /> },
-    { path: '/sales/new', label: 'New Sale', icon: <FiPlus size={18} /> },
-    { path: '/payments', label: 'Payments', icon: <FiDollarSign size={18} /> },
-    { path: '/payments/new', label: 'New Payment', icon: <FiPlus size={18} /> },
-    { path: '/receipts', label: 'Receipts', icon: <FiFileText size={18} /> },
-    { path: '/receipts/new', label: 'New Receipt', icon: <FiPlus size={18} /> },
-    { path: '/accounts', label: 'Accounts', icon: <FiCreditCard size={18} /> },
+    // { path: '/sales', label: 'Sales', icon: <FiShoppingCart size={18} /> },
+    // { path: '/sales/new', label: 'New Sale', icon: <FiPlus size={18} /> },
+    // { path: '/payments', label: 'Payments', icon: <FiDollarSign size={18} /> },
+    // { path: '/payments/new', label: 'New Payment', icon: <FiPlus size={18} /> },
+    // { path: '/receipts', label: 'Receipts', icon: <FiFileText size={18} /> },
+    // { path: '/receipts/new', label: 'New Receipt', icon: <FiPlus size={18} /> },
+    // { path: '/accounts', label: 'Accounts', icon: <FiCreditCard size={18} /> },
     { path: '/items', label: 'Items', icon: <FiPackage size={18} /> },
-    { path: '/customers', label: 'Customers', icon: <FiUsers size={18} /> },
-    { path:  '/reports', label: 'Reports', icon: <FiFileText size={18} /> },
+    // { path: '/customers', label: 'Customers', icon: <FiUsers size={18} /> },
+    { path: '/suppliers', label: 'Suppliers', icon: <FiUsers size={18} /> },
+    { path: '/reports', label: 'Reports', icon: <FiFileText size={18} /> },
+    { path: '/database', label: 'Database', icon: <FiSettings size={18} /> },
   ];
 
   // Check if a path is active (exact match or starts with path for nested routes)
@@ -44,8 +47,8 @@ const Navbar = () => {
     if (path === '/') {
       return location.pathname === '/';
     }
-    return location.pathname === path || 
-           (path !== '/' && location.pathname.startsWith(path));
+    return location.pathname === path ||
+      (path !== '/' && location.pathname.startsWith(path));
   };
 
   return (
@@ -61,8 +64,8 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Toggle Button */}
-          <button 
-            className="text-2xl text-gray-700 p-2" 
+          <button
+            className="text-2xl text-gray-700 p-2"
             onClick={toggleMenu}
             aria-label={open ? "Close menu" : "Open menu"}
           >
@@ -78,11 +81,10 @@ const Navbar = () => {
                 key={link.path}
                 to={link.path}
                 onClick={() => setOpen(false)}
-                className={`flex items-center px-4 py-3 ${
-                  isActive(link.path)
+                className={`flex items-center px-4 py-3 ${isActive(link.path)
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <span className="mr-3">{link.icon}</span>
                 {link.label}
@@ -93,10 +95,9 @@ const Navbar = () => {
       </nav>
 
       {/* Desktop Sidebar */}
-      <aside 
-        className={`hidden md:flex flex-col bg-white shadow-md fixed left-0 top-0 h-screen z-50 transition-all duration-300 ${
-          sidebarCollapsed ? 'w-20' : 'w-64'
-        }`}
+      <aside
+        className={`hidden md:flex flex-col bg-white shadow-md fixed left-0 top-0 h-screen z-50 transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'
+          }`}
       >
         {/* Sidebar Header */}
         <div className={`p-4 border-b flex ${sidebarCollapsed ? 'justify-center' : 'justify-between'} items-center`}>
@@ -111,7 +112,7 @@ const Navbar = () => {
               <span className="text-blue-600">PB</span>
             </Link>
           )}
-          <button 
+          <button
             onClick={toggleSidebar}
             className={`text-gray-500 hover:text-gray-700 ${sidebarCollapsed ? 'ml-0 rotate-180' : ''}`}
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -126,11 +127,10 @@ const Navbar = () => {
             <Link
               key={link.path}
               to={link.path}
-              className={`flex items-center px-4 py-3 mb-1 mx-2 rounded-md ${
-                isActive(link.path)
+              className={`flex items-center px-4 py-3 mb-1 mx-2 rounded-md ${isActive(link.path)
                   ? 'bg-blue-50 text-blue-600'
                   : 'text-gray-700 hover:bg-gray-100 hover:text-blue-600'
-              } ${sidebarCollapsed ? 'justify-center' : ''}`}
+                } ${sidebarCollapsed ? 'justify-center' : ''}`}
               title={sidebarCollapsed ? link.label : ''}
             >
               <span className={sidebarCollapsed ? '' : 'mr-3'}>{link.icon}</span>
@@ -141,9 +141,9 @@ const Navbar = () => {
       </aside>
 
       {/* Push content for desktop */}
-      <div className="hidden md:block" style={{ 
+      <div className="hidden md:block" style={{
         width: sidebarCollapsed ? '5rem' : '16rem',
-        height: '1px' 
+        height: '1px'
       }} />
     </>
   );

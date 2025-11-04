@@ -1,14 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, API_PATHS } from '../../api';
 import { format } from 'date-fns';
 import { useCustomers } from '../../contexts/CustomerContext';
 import { useItems } from '../../contexts/ItemContext';
+import Button from '../ui/Button';
+import { useToast } from '../../contexts/ToastContext';
+import CustomerForm from '../customer/CustomerForm';
 
 function SalesForm({ saleId, onSuccess, onClose }) {
   const queryClient = useQueryClient();
   const { customers } = useCustomers();
   const { items } = useItems();
+  const { notify } = useToast();
 
   // Fetch sale data if in edit mode
   const { data: saleData } = useQuery({
@@ -27,6 +31,7 @@ function SalesForm({ saleId, onSuccess, onClose }) {
   const [totalAmount, setTotalAmount] = useState(0);
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
 
   // Initialize form with sale data when in edit mode
   useEffect(() => {
@@ -108,10 +113,11 @@ function SalesForm({ saleId, onSuccess, onClose }) {
       }
 
       queryClient.invalidateQueries(['sales']);
+      notify(saleId ? 'Sale updated' : 'Sale created', { type: 'success' });
       onSuccess?.();
     } catch (error) {
-      alert('An error occurred while saving the sale. Please try again.');
       console.error(error);
+      notify(error?.normalizedMessage || 'Failed to save sale', { type: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -124,49 +130,67 @@ function SalesForm({ saleId, onSuccess, onClose }) {
           <h2 className="text-xl font-semibold">
             {saleId ? 'Edit Sale' : 'Create New Sale'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            &times;
-          </button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">&times;</button>
         </div>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">
-              Customer
-            </label>
-            <select
-              id="customerId"
-              name="customerId"
-              value={formData.customerId}
-              onChange={handleChange}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
-              required
-            >
-              <option value="">Select Customer</option>
-              {customers.map((customer) => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name}
-                </option>
-              ))}
-            </select>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+            <div>
+              <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">Customer</label>
+              <select
+                id="customerId"
+                name="customerId"
+                value={formData.customerId}
+                onChange={handleChange}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"
+                required
+              >
+                <option value="">Select Customer</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name} {customer.phone ? `(${customer.phone})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2 md:justify-end">
+              <Button type="button" variant="secondary" onClick={() => setIsCustomerModalOpen(true)}>
+                + Create Customer
+              </Button>
+            </div>
           </div>
 
-          <div>
-            <h3 className="text-lg font-semibold">Items</h3>
-            <div className="flex justify-between items-center">
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md"
-              >
-                Add Item
-              </button>
-              <div className="text-lg font-semibold">
-                Total: ₹{totalAmount.toFixed(2)}
+          {isCustomerModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">New Customer</h3>
+                    <button className="text-gray-500 hover:text-gray-700" onClick={() => setIsCustomerModalOpen(false)}>&times;</button>
+                  </div>
+                  <CustomerForm
+                    onSuccess={(created) => {
+                      setIsCustomerModalOpen(false);
+                      if (created?.id) {
+                        setFormData((prev) => ({ ...prev, customerId: created.id }));
+                      }
+                    }}
+                  />
+                </div>
               </div>
+            </div>
+          )}
+
+          <div>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Items</h3>
+              <div className="text-lg font-semibold">Total: ₹{totalAmount.toFixed(2)}</div>
+            </div>
+            <div className="flex justify-between items-center mt-2">
+              <Button type="button" onClick={handleAddItem}>
+                Add Item
+              </Button>
+              <div className="text-sm text-gray-500">Press Ctrl+Enter on Unit Price to add a new row</div>
             </div>
             <ul className="mt-4 space-y-4">
               {formData.items.map((item, index) => (
@@ -180,7 +204,8 @@ function SalesForm({ saleId, onSuccess, onClose }) {
                         // Auto-fill the unit price when item is selected
                         const selectedItem = items.find(i => i.id === e.target.value);
                         if (selectedItem) {
-                          newItems[index].unitPrice = selectedItem.sellingPrice;
+                          // Use basePrice as selling price fallback
+                          newItems[index].unitPrice = selectedItem.basePrice ?? 0;
                         }
                         setFormData((prev) => ({ ...prev, items: newItems }));
                       }}
@@ -223,6 +248,12 @@ function SalesForm({ saleId, onSuccess, onClose }) {
                         newItems[index].unitPrice = parseFloat(e.target.value) || 0;
                         setFormData((prev) => ({ ...prev, items: newItems }));
                       }}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddItem();
+                        }
+                      }}
                       className="w-full border border-gray-300 rounded-md py-2 px-3"
                       required
                     />
@@ -246,7 +277,7 @@ function SalesForm({ saleId, onSuccess, onClose }) {
             </ul>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="receivedAmount" className="block text-sm font-medium text-gray-700">
                 Received Amount
@@ -281,21 +312,17 @@ function SalesForm({ saleId, onSuccess, onClose }) {
             </div>
           </div>
 
+          {/* Summary */}
+          <div className="bg-gray-50 rounded-md p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-gray-700 text-sm">Grand Total</div>
+            <div className="text-xl font-semibold">₹{totalAmount.toFixed(2)}</div>
+            <div className="text-gray-700 text-sm">Due</div>
+            <div className="text-xl font-semibold">₹{Math.max(totalAmount - (parseFloat(formData.receivedAmount) || 0), 0).toFixed(2)}</div>
+          </div>
+
           <div className="pt-4 border-t flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-            >
-              {isLoading ? 'Saving...' : saleId ? 'Update Sale' : 'Create Sale'}
-            </button>
+            <Button variant="secondary" type="button" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={isLoading}>{isLoading ? 'Saving...' : saleId ? 'Update Sale' : 'Create Sale'}</Button>
           </div>
         </form>
       </div>

@@ -19,7 +19,7 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
     queryKey: ['suppliers'],
     queryFn: async () => {
       const response = await api.get(API_PATHS.suppliers.getAll);
-      return response.data;
+      return Array.isArray(response.data) ? response.data : response.data?.suppliers || [];
     }
   });
 
@@ -27,7 +27,7 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
     queryKey: ['items'],
     queryFn: async () => {
       const response = await api.get(API_PATHS.items.getAll);
-      return response.data;
+      return response.data?.items || response.data || [];
     }
   });
 

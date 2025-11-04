@@ -1,14 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { api, API_PATHS } from '../../api';
+import Button from '../ui/Button';
+import { useToast } from '../../contexts/ToastContext';
 
 const CustomerForm = ({ customer, onSuccess }) => {
   const queryClient = useQueryClient();
+  const { notify } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
     address: ''
   });
+  const [localError, setLocalError] = useState('');
 
   // Initialize form with customer data if editing
   useEffect(() => {
@@ -33,23 +37,28 @@ const CustomerForm = ({ customer, onSuccess }) => {
   const saveCustomer = useMutation({
     mutationFn: async () => {
       if (customer) {
-        // Update existing customer
         return api.put(API_PATHS.customers.update(customer.id), formData);
       } else {
-        // Create new customer
         return api.post(API_PATHS.customers.create, formData);
       }
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries(['customers']);
-      onSuccess();
+      notify(customer ? 'Customer updated' : 'Customer created', { type: 'success' });
+      onSuccess(res?.data);
+    },
+    onError: (e) => {
+      const msg = e?.response?.data?.message || e.message || 'Failed to save customer';
+      setLocalError(msg);
+      notify(msg, { type: 'error' });
     }
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
-      alert('Customer name is required');
+      setLocalError('Customer name is required');
+      notify('Customer name is required', { type: 'warning' });
       return;
     }
     saveCustomer.mutate();
@@ -57,6 +66,9 @@ const CustomerForm = ({ customer, onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {localError && (
+        <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">{localError}</div>
+      )}
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Name *
@@ -101,20 +113,12 @@ const CustomerForm = ({ customer, onSuccess }) => {
       </div>
 
       <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
-        <button
-          type="button"
-          onClick={onSuccess}
-          className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
+        <Button variant="secondary" type="button" onClick={() => onSuccess()}>
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={saveCustomer.isLoading}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-        >
+        </Button>
+        <Button type="submit" disabled={saveCustomer.isLoading}>
           {saveCustomer.isLoading ? 'Saving...' : customer ? 'Update' : 'Save'}
-        </button>
+        </Button>
       </div>
     </form>
   );

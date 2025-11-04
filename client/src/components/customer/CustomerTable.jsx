@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { api, API_PATHS } from '../../api';
 import CustomerForm from './CustomerForm';
 import CustomerCreditReport from './CustomerCreditReport';
+import Spinner from '../ui/Spinner';
+import Button from '../ui/Button';
+import { useToast } from '../../contexts/ToastContext';
 
 const CustomerTable = () => {
   const queryClient = useQueryClient();
@@ -11,9 +14,10 @@ const CustomerTable = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isCreditReportOpen, setIsCreditReportOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { notify } = useToast();
 
   // Fetch customers with search functionality
-  const { data: customers = [], isLoading, isError } = useQuery({
+  const { data: customers = [], isLoading, isError, error } = useQuery({
     queryKey: ['customers', searchTerm],
     queryFn: async () => {
       const response = await api.get(API_PATHS.customers.getAll, {
@@ -28,6 +32,10 @@ const CustomerTable = () => {
     mutationFn: (id) => api.delete(API_PATHS.customers.delete(id)),
     onSuccess: () => {
       queryClient.invalidateQueries(['customers']);
+      notify('Customer deleted', { type: 'success' });
+    },
+    onError: (e) => {
+      notify(e?.normalizedMessage || 'Failed to delete customer', { type: 'error' });
     }
   });
 
@@ -46,16 +54,27 @@ const CustomerTable = () => {
     setSelectedCustomer(null);
   };
 
+  if (isLoading) {
+    return <div className="p-8"><Spinner label="Loading customers..." /></div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="p-6">
+        <div className="rounded-md bg-red-50 p-4 text-red-700 border border-red-200">
+          Failed to load customers: {error?.response?.data?.message || error?.message}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">Customer Management</h1>
-        <button
-          onClick={() => setIsFormOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
-        >
+        <Button onClick={() => setIsFormOpen(true)}>
           <FiPlus className="mr-2" /> Add Customer
-        </button>
+        </Button>
       </div>
 
       {/* Search Bar */}

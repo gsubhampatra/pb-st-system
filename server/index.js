@@ -1,6 +1,7 @@
 import express from "express";
 import "dotenv/config";
 import cors from "cors";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ import receiptRoutes from "./routes/receipt.routes.js";
 import accountRoutes from "./routes/account.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 import printRoutes from "./routes/print.routes.js";
+import databaseRoutes from "./routes/database.routes.js";
 
 //routes
 app.use("/api/items", itemRoutes);
@@ -35,6 +37,10 @@ app.use("/api/receipts", receiptRoutes);
 app.use("/api/accounts", accountRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/print", printRoutes);
+app.use("/api/database", databaseRoutes);
+
+// Error handler middleware (must be last)
+app.use(errorHandler);
 
 const port = process.env.PORT || 3000;
 app.listen(port,  () => {

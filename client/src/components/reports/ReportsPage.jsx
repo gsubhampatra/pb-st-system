@@ -51,34 +51,72 @@ const ReportsPage = () => {
   const fetchHistory = async () => {
     try {
       const response = await api.get(API_PATHS.reports.getDownloadHistory);
-      setHistory(response.data);
+      // Server returns { downloads: [...] }
+      setHistory(response.data?.downloads || []);
     } catch (error) {
       console.error('Error fetching history:', error);
     }
   };
 
+  const toDayBounds = (d) => {
+    const start = new Date(d);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(d);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  };
+
+  const buildDateRange = () => {
+    const now = new Date();
+    if (filter === 'today') {
+      return toDayBounds(now);
+    }
+    if (filter === 'week') {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    if (filter === 'month' && month !== '' && year) {
+      const y = Number(year);
+      const m = Number(month); // 0-based
+      const start = new Date(y, m, 1, 0, 0, 0, 0);
+      const end = new Date(y, m + 1, 0, 23, 59, 59, 999); // last day of month
+      return { start, end };
+    }
+    if (filter === 'date' && date) {
+      return toDayBounds(date);
+    }
+    return {};
+  };
+
   const downloadReport = async (type) => {
     setLoading(true);
     try {
-      // Build query parameters based on filter type
-      let queryParams = { type, filter };
-      
-      if (filter === 'month' && month !== '' && year) {
-        queryParams.month = month;
-        queryParams.year = year;
-      } else if (filter === 'date' && date) {
-        queryParams.date = date;
+      // Map UI type to server-supported reportType
+      const typeMap = { purchase: 'purchase', sale: 'sales', stock: 'stock' };
+      const reportType = typeMap[type];
+      if (!reportType) {
+        alert('This report type is not supported for export.');
+        return;
       }
-      
-      const queryString = new URLSearchParams(queryParams).toString();
-      const response = await api.get(`${API_PATHS.reports.download}?${queryString}`, {
+
+      const { start, end } = buildDateRange();
+      const params = new URLSearchParams();
+      params.set('reportType', reportType);
+      if (start) params.set('startDate', start.toISOString());
+      if (end) params.set('endDate', end.toISOString());
+
+      const response = await api.get(`${API_PATHS.reports.download}?${params.toString()}`, {
         responseType: 'blob'
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${type}_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.download = `${reportType}_report_${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -100,18 +138,8 @@ const ReportsPage = () => {
   );
 
   const columns = [
-    {
-      title: 'Report Type',
-      dataIndex: 'type',
-      key: 'type',
-      render: (text) => text.charAt(0).toUpperCase() + text.slice(1)
-    },
-    {
-      title: 'Download Date',
-      dataIndex: 'date',
-      key: 'date',
-      render: (text) => new Date(text).toLocaleString()
-    }
+    { title: 'Report Type', key: 'reportType' },
+    { title: 'Download Date', key: 'downloadedAt' },
   ];
 
   return (
@@ -119,10 +147,10 @@ const ReportsPage = () => {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Reports</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <StatCard title="Today's Purchases" value={summary.purchases} />
-        <StatCard title="Today's Sales" value={summary.sales} />
-        <StatCard title="Today's Payments" value={summary.payments} />
-        <StatCard title="Today's Receipts" value={summary.receipts} />
+        <StatCard title="Purchases" value={summary.totalPurchases} />
+        <StatCard title="Sales" value={summary.totalSales} />
+        <StatCard title="Payments" value={summary.totalPayments} />
+        <StatCard title="Receipts" value={summary.totalReceipts} />
       </div>
 
       <div className="bg-white rounded-lg shadow mb-6">
@@ -183,7 +211,7 @@ const ReportsPage = () => {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {['purchase', 'sale', 'payment', 'receipt'].map((type) => (
+            {['purchase', 'sale', 'stock'].map((type) => (
               <button
                 key={type}
                 onClick={() => downloadReport(type)}
@@ -220,10 +248,10 @@ const ReportsPage = () => {
                   history.map((item) => (
                     <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {columns[0].render(item.type)}
+                        {(item.reportType || '').charAt(0).toUpperCase() + (item.reportType || '').slice(1)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {columns[1].render(item.date)}
+                        {item.downloadedAt ? new Date(item.downloadedAt).toLocaleString() : ''}
                       </td>
                     </tr>
                   ))

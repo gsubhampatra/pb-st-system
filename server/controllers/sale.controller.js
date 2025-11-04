@@ -37,7 +37,7 @@ export const createSale = async (req, res) => {
                 // Fetch item details including current stock
                 const dbItem = await tx.item.findUnique({
                     where: { id: item.itemId },
-                    select: { id: true, name: true, currentStock: true }
+                    select: { id: true, name: true, stock: true }
                 });
 
                 if (!dbItem) {
@@ -45,8 +45,8 @@ export const createSale = async (req, res) => {
                 }
 
                 // !!! CRITICAL: Check Stock Availability !!!
-                if (dbItem.currentStock < item.quantity) {
-                    throw new Error(`Insufficient stock for item "${dbItem.name}" (ID: ${item.itemId}). Available: ${dbItem.currentStock}, Requested: ${item.quantity}`);
+                if (dbItem.stock < item.quantity) {
+                    throw new Error(`Insufficient stock for item "${dbItem.name}" (ID: ${item.itemId}). Available: ${dbItem.stock}, Requested: ${item.quantity}`);
                 }
 
                 const itemTotalPrice = item.quantity * item.unitPrice;
@@ -87,27 +87,16 @@ export const createSale = async (req, res) => {
                 })),
             });
 
-            // 5. Update Item stock levels and create Stock Transactions
+            // 5. Update Item stock levels (no stock transactions)
             for (const update of itemStockUpdates) {
                 // Decrement stock
                 await tx.item.update({
                     where: { id: update.itemId },
                     data: {
-                        currentStock: {
+                        stock: {
                             decrement: update.quantity,
                         },
                     },
-                });
-
-                // Create stock transaction record
-                await tx.stockTransaction.create({
-                    data: {
-                        itemId: update.itemId,
-                        type: 'sale',
-                        quantity: -update.quantity, // Negative for sale/stock decrease
-                        relatedId: newSale.id,     // Link to the sale
-                        date: new Date(),          // Use current date for transaction log
-                    }
                 });
             }
 
@@ -325,26 +314,17 @@ export const deleteSale = async (req, res) => {
              //     throw new Error('Cannot delete sale with associated receipts.');
              // }
 
-            // 2. Reverse stock updates and delete related stock transactions
+            // 2. Reverse stock updates (no stock transactions to delete)
             for (const item of saleToDelete.items) {
                  // Increment stock (add back what was sold)
                 await tx.item.update({
                     where: { id: item.itemId },
                     data: {
-                        currentStock: {
+                        stock: {
                             increment: item.quantity,
                         },
                     },
                 });
-
-                 // Delete the related stock transaction(s)
-                 await tx.stockTransaction.deleteMany({
-                     where: {
-                         relatedId: id,
-                         type: 'sale',
-                         itemId: item.itemId // Be specific
-                     }
-                 });
             }
 
             // 3. Delete SaleItems associated with the sale

@@ -29,7 +29,7 @@ function Step2Items({ purchaseItems, onAddItem, onRemoveItem, onUpdateItem, onGo
         const response = await api.get(API_PATHS.items.getAll, {
             params: { search: searchTerm }
         });
-        return response.data; // Expects an array of items [{id, name, basePrice, unit, ...}]
+        return response.data?.items || response.data || []; // Expects an array of items [{id, name, basePrice, unit, ...}]
     },
     enabled: !!searchTerm, // Only fetch when searching
     placeholderData: [],

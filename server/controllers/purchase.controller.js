@@ -99,7 +99,7 @@ export const createPurchase = async (req, res) => {
         })),
       });
 
-      // 5. Update Item stock levels and create Stock Transactions
+      // 5. Update Item stock levels (no stock transactions)
       for (const update of itemStockUpdates) {
         // Increment stock
         await tx.item.update({
@@ -108,17 +108,6 @@ export const createPurchase = async (req, res) => {
             currentStock: {
               increment: update.quantity,
             },
-          },
-        });
-
-        // Create stock transaction record
-        await tx.stockTransaction.create({
-          data: {
-            itemId: update.itemId,
-            type: "purchase",
-            quantity: update.quantity, // Positive for purchase
-            relatedId: newPurchase.id, // Link to the purchase
-            date: new Date(), // Use current date for transaction log
           },
         });
       }
@@ -403,7 +392,7 @@ export const deletePurchase = async (req, res) => {
       //     throw new Error('Cannot delete purchase with associated payments.');
       // }
 
-      // 2. Reverse stock updates and delete related stock transactions
+      // 2. Reverse stock updates (no stock transactions to delete)
       for (const item of purchaseToDelete.items) {
         // Decrement stock
         await tx.item.update({
@@ -416,15 +405,6 @@ export const deletePurchase = async (req, res) => {
         });
         // Optional: Add a check here to prevent stock going negative if required by business logic
         // const updatedItem = await tx.item.findUnique... if (updatedItem.currentStock < 0) throw...
-
-        // Delete the related stock transaction(s)
-        await tx.stockTransaction.deleteMany({
-          where: {
-            relatedId: id,
-            type: "purchase",
-            itemId: item.itemId, // Be specific if multiple items updated stock
-          },
-        });
       }
 
       // 3. Delete PurchaseItems associated with the purchase

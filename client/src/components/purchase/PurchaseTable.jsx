@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FiEdit, FiTrash2, FiEye, FiPrinter, FiPlus, FiDownload } from 'react-icons/fi';
+import { FiEdit, FiTrash2, FiEye, FiPrinter, FiPlus, FiDownload, FiFilter } from 'react-icons/fi';
 import { useState } from 'react';
 import EditPurchaseForm from './EditPurchaseForm';
 import PurchaseDetail from './PurchaseDetail';
 import { format } from 'date-fns';
 import { api, API_PATHS } from '../../api';
-import * as XLSX from 'xlsx';
+import SearchableSelect from './ui/SearchableSelect';
+import { useSuppliers } from '../../contexts/SupplierContext';
 
 const PurchaseTable = () => {
     const queryClient = useQueryClient();
@@ -20,6 +21,9 @@ const PurchaseTable = () => {
         page: 1,
         limit: 10
     });
+
+    const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
+    const prettyStatus = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : '');
 
     // Fetch purchases with filtering and pagination
     const { data: purchasesData, isLoading, isError } = useQuery({
@@ -58,62 +62,6 @@ const PurchaseTable = () => {
         setIsDetailOpen(true);
     };
 
-    const handleExportToExcel = () => {
-        const worksheet = XLSX.utils.json_to_sheet(purchasesData.data);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchases');
-        
-        // Generate filename with date and time
-        const now = new Date();
-        const dateStr = format(now, 'yyyy-MM-dd');
-        const timeStr = format(now, 'HH-mm-ss');
-        
-        // Add filter information to filename
-        let filename = `Purchases_${dateStr}_${timeStr}`;
-        
-        // Add supplier name if filtered
-        if (filters.supplierNameORPhone) {
-            const supplierName = purchasesData.data.length > 0 && purchasesData.data[0].supplier ? 
-                `_${purchasesData.data[0].supplier.name.replace(/\s+/g, '-')}` : 
-                `_Supplier-${filters.supplierNameORPhone}`;
-            filename += supplierName;
-        }
-        
-        // Add date range if specified
-        if (filters.startDate) {
-            filename += `_from-${filters.startDate}`;
-        }
-        if (filters.endDate) {
-            filename += `_to-${filters.endDate}`;
-        }
-        
-        // Add status if filtered
-        if (filters.status) {
-            filename += `_${filters.status}`;
-        }
-        
-        // Add item count, total and paid amounts summary
-        const totalItems = purchasesData.data.reduce((sum, purchase) => sum + (purchase._count?.items || 0), 0);
-        const totalAmount = purchasesData.data.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
-        const paidAmount = purchasesData.data.reduce((sum, purchase) => sum + purchase.paidAmount, 0);
-        
-        worksheet['!cols'] = [
-            { wch: 15 }, // Date
-            { wch: 25 }, // Supplier
-            { wch: 10 }, // Items
-            { wch: 15 }, // Total
-            { wch: 15 }, // Paid
-            { wch: 15 }  // Status
-        ];
-        
-        // Add summary row at the bottom
-        XLSX.utils.sheet_add_aoa(worksheet, [
-            ['', '', '', '', '', ''],
-            ['Summary:', '', `Items: ${totalItems}`, `Total: $${totalAmount.toFixed(2)}`, `Paid: $${paidAmount.toFixed(2)}`, '']
-        ], { origin: -1 });
-        
-        XLSX.writeFile(workbook, `${filename}.xlsx`);
-    };
 
     const handleCloseForm = () => {
         setIsFormOpen(false);
@@ -124,31 +72,62 @@ const PurchaseTable = () => {
         setFilters(prev => ({ ...prev, page: newPage }));
     };
 
+    // Report download filters
+    const { suppliers: suppliersData, isLoading: isLoadingSuppliers, setSearchTerm: setSupplierSearchTerm } = useSuppliers();
+    const [reportSupplier, setReportSupplier] = useState(null);
+    const [reportStartDate, setReportStartDate] = useState(new Date().toISOString().substr(0, 16)); // default to today
+    const [reportEndDate, setReportEndDate] = useState(new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().substr(0, 16)); // default to tomorrow
+
+    const onReportSupplierQuery = (q) => setSupplierSearchTerm(q);
+
+    const downloadPurchaseReport = async () => {
+        try {
+            const params = new URLSearchParams();
+            params.set('reportType', 'purchase');
+            if (reportStartDate) {
+                const start = new Date(reportStartDate); start.setHours(0,0,0,0);
+                params.set('startDate', start.toISOString());
+            }
+            if (reportEndDate) {
+                const end = new Date(reportEndDate); end.setHours(23,59,59,999);
+                params.set('endDate', end.toISOString());
+            }
+            if (reportSupplier?.id) params.set('supplierId', reportSupplier.id);
+
+            const response = await api.get(`${API_PATHS.reports.download}?${params.toString()}`,{ responseType:'blob' });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `purchase_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to download purchase report:', error);
+            alert(error?.response?.data?.message || 'Failed to download report');
+        }
+    };
+
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">Purchase Management</h1>
-                <button
-                    onClick={handleExportToExcel}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                    <FiDownload className="mr-2" />
-                    Export to Excel
-                </button>
-            </div>
+        <div className="container mx-auto px-3 py-6">
+
 
             {/* Filter Section */}
             <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-                <h2 className="text-lg font-semibold mb-4">Filters</h2>
+                <div className="flex items-center gap-2 mb-4">
+                    <FiFilter className="text-gray-500" />
+                    <h2 className="text-lg font-semibold">Filters</h2>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Supplier</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Supplier (name or phone)</label>
                         <input
                             type="text"
-                            placeholder="Supplier ID"
+                            placeholder="e.g. Rakesh or 98xxxxxx"
                             className="w-full p-2 border border-gray-300 rounded-md"
                             value={filters.supplierNameORPhone}
-                            onChange={(e) => setFilters(prev => ({ ...prev, supplierNameORPhone: e.target.value }))}
+                            onChange={(e) => setFilters(prev => ({ ...prev, supplierNameORPhone: e.target.value, page: 1 }))}
                         />
                     </div>
                     <div>
@@ -157,7 +136,7 @@ const PurchaseTable = () => {
                             type="date"
                             className="w-full p-2 border border-gray-300 rounded-md"
                             value={filters.startDate}
-                            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                            onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value, page: 1 }))}
                         />
                     </div>
                     <div>
@@ -166,7 +145,7 @@ const PurchaseTable = () => {
                             type="date"
                             className="w-full p-2 border border-gray-300 rounded-md"
                             value={filters.endDate}
-                            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                            onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value, page: 1 }))}
                         />
                     </div>
                     <div>
@@ -174,7 +153,7 @@ const PurchaseTable = () => {
                         <select
                             className="w-full p-2 border border-gray-300 rounded-md"
                             value={filters.status}
-                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                            onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value, page: 1 }))}
                         >
                             <option value="">All</option>
                             <option value="recorded">Recorded</option>
@@ -184,42 +163,104 @@ const PurchaseTable = () => {
                         </select>
                     </div>
                 </div>
-                <div className="flex justify-end mt-4">
-                    <button
-                        onClick={() => setFilters({
-                            supplierNameORPhone: '',
-                            startDate: '',
-                            endDate: '',
-                            status: '',
-                            page: 1,
-                            limit: 10
-                        })}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                        Reset Filters
-                    </button>
+                <div className="flex justify-between mt-4 flex-col gap-3 md:flex-row md:items-center">
+                    <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-xs text-gray-500">Quick status:</span>
+                        {['', 'paid', 'partial', 'cancelled'].map((s) => (
+                            <button
+                                key={s || 'all'}
+                                onClick={() => setFilters(prev => ({ ...prev, status: s, page: 1 }))}
+                                className={`px-2 py-1 rounded-full text-xs border ${filters.status === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                            >
+                                {s ? prettyStatus(s) : 'All'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                        <select
+                            className="px-2 py-2 border border-gray-300 rounded-md text-sm"
+                            value={filters.limit}
+                            onChange={(e) => setFilters(prev => ({ ...prev, limit: Number(e.target.value), page: 1 }))}
+                            title="Rows per page"
+                        >
+                            {[10, 20, 50].map(n => <option key={n} value={n}>{n} / page</option>)}
+                        </select>
+                        <button
+                            onClick={() => setFilters({
+                                supplierNameORPhone: '',
+                                startDate: '',
+                                endDate: '',
+                                status: '',
+                                page: 1,
+                                limit: 10
+                            })}
+                            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                            <FiFilter className="opacity-70" />
+                            Reset Filters
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Loading and Error States */}
-            {isLoading && <div className="text-center py-8">Loading purchases...</div>}
+            {isLoading && (
+                <div className="bg-white shadow rounded-lg overflow-hidden">
+                    <div className="animate-pulse">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="h-12 border-b border-gray-200 bg-gray-50/50" />
+                        ))}
+                    </div>
+                </div>
+            )}
             {isError && <div className="text-center py-8 text-red-500">Error loading purchases</div>}
 
             {/* Purchase Table */}
             {!isLoading && !isError && (
                 <div className="bg-white shadow-md rounded-lg overflow-hidden">
+                    {/* Download toolbar */}
+                    <div className="p-4 border-b flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full md:w-auto">
+                            <div>
+                                <SearchableSelect
+                                    label="Supplier (optional)"
+                                    items={suppliersData || []}
+                                    selected={reportSupplier}
+                                    onSelect={setReportSupplier}
+                                    onQueryChange={onReportSupplierQuery}
+                                    placeholder="Type to search suppliers..."
+                                    loading={isLoadingSuppliers}
+                                    displayValue={(s) => s ? `${s.name}${s.phone?` (${s.phone})`:''}` : ''}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">From date</label>
+                                <input type="datetime-local" value={reportStartDate} onChange={(e)=>setReportStartDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" defaultValue={new Date().toISOString().substr(0, 16) + 'T00:00'} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">To date</label>
+                                <input type="datetime-local" value={reportEndDate} onChange={(e)=>setReportEndDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" defaultValue={new Date(Date.now() + 24*60*60*1000).toISOString().substr(0, 16) + 'T23:59'} />
+                            </div>
+                        </div>
+                        <div className="mt-2 md:mt-0">
+                            <button onClick={downloadPurchaseReport} className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                                <FiDownload />
+                                Download Purchase Report
+                            </button>
+                        </div>
+                    </div>
                     <div className="overflow-x-auto">
 
                         <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                            <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Supplier</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Items</th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Paid</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -232,13 +273,16 @@ const PurchaseTable = () => {
                                             {purchase.supplier?.name || 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {purchase._count?.items || 0}
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
+                                                {purchase._count?.items || 0}
+                                                <span>items</span>
+                                            </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            ${purchase.totalAmount.toFixed(2)}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                            {inr.format(purchase.totalAmount || 0)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            ${purchase.paidAmount.toFixed(2)}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                                            {inr.format(purchase.paidAmount || 0)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${purchase.status === 'paid' ? 'bg-green-100 text-green-800' :
@@ -246,7 +290,7 @@ const PurchaseTable = () => {
                                                     purchase.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                                                         'bg-blue-100 text-blue-800'
                                                 }`}>
-                                                {purchase.status}
+                                                {prettyStatus(purchase.status)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 flex space-x-2">
@@ -292,14 +336,21 @@ const PurchaseTable = () => {
                         </table>
                     </div>
                     {purchasesData.data.length === 0 && (
-                        <div className="text-center py-8 text-gray-500">No purchases found</div>
+                        <div className="py-12 flex flex-col items-center justify-center text-gray-500">
+                            <div className="text-5xl mb-3">🧾</div>
+                            <div className="font-medium">No purchases found</div>
+                            <div className="text-sm">Try adjusting filters or date range.</div>
+                        </div>
                     )}
                 </div>
             )}
 
             {/* Pagination */}
             {!isLoading && !isError && purchasesData?.pagination?.totalPages > 1 && (
-                <div className="flex justify-center mt-6">
+                <div className="flex flex-col md:flex-row gap-3 items-center justify-between mt-6">
+                    <div className="text-sm text-gray-600">
+                        Page {filters.page} of {purchasesData.pagination.totalPages}
+                    </div>
                     <nav className="inline-flex rounded-md shadow">
                         <button
                             onClick={() => handlePageChange(filters.page - 1)}

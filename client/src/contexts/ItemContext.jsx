@@ -23,7 +23,7 @@ export function ItemProvider({ children }) {
       const response = await api.get(API_PATHS.items.getAll, {
         params: { search: searchTerm }
       });
-      return response.data;
+      return response.data?.items || response.data || [];
     }
   });
 

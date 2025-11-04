@@ -9,8 +9,8 @@ import { useSuppliers } from '../../contexts/SupplierContext';
 import { format } from 'date-fns';
 
 const STATUS_OPTIONS = [
-  { value: 'recorded', label: 'Recorded (Unpaid/Partially Paid)' },
-  { value: 'paid', label: 'Paid in Full' },
+  { value: 'paid', label: 'Full Paid' },
+  { value: 'partial', label: 'Partial Paid' },
 ];
 
 function PurchaseForm() {
@@ -26,17 +26,49 @@ function PurchaseForm() {
   const saveAndPrintButtonRef = useRef(null);
 
   const handleKeyDown = (event) => {
+    // Global item-entry shortcuts
+    if (event.key === 'Escape') {
+      // Clear current row inputs
+      setSelectedItemToAdd(null);
+      setItemQuantity(1);
+      setItemUnitPrice('');
+      itemSelectRef.current?.focus();
+      return;
+    }
+
+    const isCtrlEnter = event.key === 'Enter' && (event.ctrlKey || event.metaKey);
+    if (isCtrlEnter) {
+      event.preventDefault();
+      addItemButtonRef.current?.click();
+      return;
+    }
+
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (document.activeElement === itemSelectRef.current) {
-        itemQuantityRef.current.focus();
-      }
-      else if (document.activeElement === itemQuantityRef.current) {
-        itemUnitPriceRef.current.focus();
-      } else if (document.activeElement === itemUnitPriceRef.current) {
-        addItemButtonRef.current.click();
-      } else if (document.activeElement === paidAmountRef.current) {
-        saveButtonRef.current.click();
+      const active = document.activeElement;
+      if (active === itemSelectRef.current) {
+        // Prefill price from item if available, then go to quantity
+        if (selectedItemToAdd?.basePrice != null && (itemUnitPrice === '' || itemUnitPrice == null)) {
+          setItemUnitPrice(String(selectedItemToAdd.basePrice));
+        }
+        itemQuantityRef.current?.focus();
+      } else if (active === itemQuantityRef.current) {
+        // If price is already set (auto), add the item directly; else go to price
+        const hasPrice = itemUnitPrice !== '' && !isNaN(parseFloat(itemUnitPrice));
+        if (!hasPrice && selectedItemToAdd?.basePrice != null) {
+          setItemUnitPrice(String(selectedItemToAdd.basePrice));
+        }
+        const validQty = !isNaN(parseFloat(itemQuantity)) && parseFloat(itemQuantity) > 0;
+        const priceReady = (hasPrice || selectedItemToAdd?.basePrice != null);
+        if (validQty && priceReady) {
+          addItemButtonRef.current?.click();
+        } else {
+          itemUnitPriceRef.current?.focus();
+        }
+      } else if (active === itemUnitPriceRef.current) {
+        addItemButtonRef.current?.click();
+      } else if (active === paidAmountRef.current) {
+        saveButtonRef.current?.click();
       }
     }
   };
@@ -62,10 +94,24 @@ function PurchaseForm() {
   const [itemUnitPrice, setItemUnitPrice] = useState('');
 
   // --- Summary State ---
-  const [status, setStatus] = useState('recorded');
+  const [status, setStatus] = useState('paid');
   const [paidAmount, setPaidAmount] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
-  const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd')); // Add purchase date state
+  const [purchaseDate, setPurchaseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [invoiceNo, setInvoiceNo] = useState('');
+
+  // Generate invoice number on mount
+  useEffect(() => {
+    const generateInvoiceNo = () => {
+      const today = new Date();
+      const year = today.getFullYear().toString().slice(2);
+      const month = (today.getMonth() + 1).toString().padStart(2, "0");
+      const day = today.getDate().toString().padStart(2, "0");
+      const timestamp = Date.now().toString().slice(-4);
+      return `${year}${month}${day}${timestamp}`;
+    };
+    setInvoiceNo(generateInvoiceNo());
+  }, []);
 
   // --- Calculate Total Amount ---
   useEffect(() => {
@@ -117,15 +163,36 @@ function PurchaseForm() {
     });
   };
 
-  const { data: itemsData, isLoading: isLoadingItems } = useQuery({
+  const { data: itemsData = [], isLoading: isLoadingItems } = useQuery({
     queryKey: ['items', itemSearchTerm],
     queryFn: async () => {
-      const response = await api.get(API_PATHS.items.getAll);
-      return response.data;
+      const response = await api.get(API_PATHS.items.getAll, {
+        params: { search: itemSearchTerm }
+      });
+      return response.data.items || response.data || [];
     },
-    enabled: !!itemSearchTerm,
+    enabled: !!itemSearchTerm || itemSearchTerm === '', // Always fetch, but filter by search term
     placeholderData: [],
   });
+
+  // When item is selected, auto-fill unit price from item's basePrice if empty
+  useEffect(() => {
+    if (selectedItemToAdd?.basePrice != null) {
+      setItemUnitPrice((prev) => (prev === '' || prev == null ? String(selectedItemToAdd.basePrice) : prev));
+    }
+  }, [selectedItemToAdd]);
+
+  const handleItemSearchChange = (query) => {
+    setItemSearchTerm(query);
+  };
+
+  const handleItemSelect = (item) => {
+    setSelectedItemToAdd(item);
+    if (item) {
+      // Focus on quantity after selection
+      setTimeout(() => itemQuantityRef.current?.focus(), 100);
+    }
+  };
 
 
 
@@ -139,22 +206,35 @@ function PurchaseForm() {
       itemId: selectedItemToAdd.id,
       itemName: selectedItemToAdd.name,
       unit: selectedItemToAdd.unit,
-      quantity: parseInt(itemQuantity, 10),
+      quantity: parseFloat(itemQuantity),
       unitPrice: parseFloat(itemUnitPrice),
-      totalPrice: parseInt(itemQuantity, 10) * parseFloat(itemUnitPrice),
+      totalPrice: parseInt(parseFloat(itemQuantity) * parseFloat(itemUnitPrice)),
       tempKey: `${selectedItemToAdd.id}-${Date.now()}` // Unique key for list rendering
     };
     setPurchaseItems((prev) => [...prev, newItem]);
 
     // Reset item form
     setSelectedItemToAdd(null);
-    setItemSearchTerm(''); // Clear search might be needed depending on SearchableSelect impl.
+    setItemSearchTerm('');
     setItemQuantity(1);
     setItemUnitPrice('');
   };
 
   const handleRemoveItem = (itemKey) => {
     setPurchaseItems((prev) => prev.filter(item => item.tempKey !== itemKey));
+  };
+
+  // Inline update for unit price in the added items table
+  const handleInlineUnitPriceChange = (itemKey, value) => {
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0) return; // Ignore invalid input
+    setPurchaseItems((prev) => prev.map((it) => {
+      if (it.tempKey === itemKey) {
+        const newTotal = parseFloat(it.quantity) * num;
+        return { ...it, unitPrice: num, totalPrice: newTotal };
+      }
+      return it;
+    }));
   };
 
   // Add edit functionality for items
@@ -172,10 +252,11 @@ function PurchaseForm() {
   const handleStatusChange = (newStatus) => {
     setStatus(newStatus);
     if (newStatus === 'paid') {
+      // Full Paid: automatically set paid amount to total
       setPaidAmount(totalAmount.toFixed(2));
-    } else {
-      // Optionally clear or keep paid amount when switching away from 'paid'
-      // setPaidAmount('');
+    } else if (newStatus === 'partial') {
+      // Partial Paid: clear paid amount for manual entry
+      setPaidAmount('');
     }
   };
 
@@ -190,15 +271,21 @@ function PurchaseForm() {
       console.log('Purchase created successfully:', data);
       queryClient.invalidateQueries(['purchases']);
       queryClient.invalidateQueries(['items']); // Invalidate items if purchase affects stock/price
-      queryClient.invalidateQueries(['stockTransactions']); // Invalidate stock if applicable
 
       // Reset form state
       setSelectedSupplier(null);
       setPurchaseItems([]);
-      setStatus('recorded');
+      setStatus('partial');
       setPaidAmount('');
       setTotalAmount(0);
       setPurchaseDate(format(new Date(), 'yyyy-MM-dd'));
+      // Generate new invoice number
+      const today = new Date();
+      const year = today.getFullYear().toString().slice(2);
+      const month = (today.getMonth() + 1).toString().padStart(2, "0");
+      const day = today.getDate().toString().padStart(2, "0");
+      const timestamp = Date.now().toString().slice(-4);
+      setInvoiceNo(`${year}${month}${day}${timestamp}`);
       resetMutation(); // Reset mutation state (error, loading)
 
       // Navigate to invoice if print was requested
@@ -225,28 +312,42 @@ function PurchaseForm() {
       alert('Please add at least one item to the purchase.');
       return;
     }
-    if (status === 'paid' && parseFloat(paidAmount || 0) !== totalAmount) {
-      if (!window.confirm(`Status is 'Paid', but the Paid Amount (${paidAmount || 0}) doesn't match the Total Amount (${totalAmount.toFixed(2)}). Proceed anyway?`)) {
+    
+    // Validation for Full Paid status
+    if (status === 'paid') {
+      const paid = parseFloat(paidAmount || 0);
+      if (paid !== totalAmount) {
+        alert(`Full Paid selected but amount (${paid}) doesn't match total (${totalAmount.toFixed(2)}). Please check.`);
         return;
       }
     }
-    if (status === 'paid' && (paidAmount === '' || isNaN(parseFloat(paidAmount)) || parseFloat(paidAmount) < 0)) {
-      alert("Status is 'Paid'. Please enter a valid non-negative Paid Amount.");
-      return;
+    
+    // Validation for Partial Paid status
+    if (status === 'partial') {
+      if (paidAmount === '' || isNaN(parseFloat(paidAmount))) {
+        alert('Partial Paid selected. Please enter the paid amount.');
+        return;
+      }
+      const paid = parseFloat(paidAmount);
+      if (paid < 0) {
+        alert('Paid amount cannot be negative.');
+        return;
+      }
+      if (paid > totalAmount) {
+        alert(`Paid amount (${paid}) cannot exceed total amount (${totalAmount.toFixed(2)}).`);
+        return;
+      }
     }
-    if (paidAmount !== '' && (isNaN(parseFloat(paidAmount)) || parseFloat(paidAmount) < 0)) {
-      alert("Please enter a valid non-negative Paid Amount.");
-      return;
-    }
-
 
     const purchaseData = {
       supplierId: selectedSupplier.id,
+      invoiceNo: invoiceNo,
       date: new Date(purchaseDate).toISOString(), // Use selected date
       items: purchaseItems.map(item => ({
         itemId: item.itemId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        // unit: 'kg' - Removed, backend will default to 'kg'
       })),
       totalAmount: totalAmount,
       paidAmount: parseFloat(paidAmount || 0), // Default to 0 if empty
@@ -258,9 +359,21 @@ function PurchaseForm() {
     createPurchase(purchaseData);
   };
 
+
   // --- Render ---
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8 max-w-6xl">
+    <div className="container mx-auto px-1 py-8 space-y-8 max-w-6xl relative">
+      {isSubmitting && (
+        <div className="absolute inset-0 z-20 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+          <div className="flex items-center gap-3 rounded-md border border-gray-200 bg-white px-4 py-2 shadow-sm">
+            <svg className="h-5 w-5 animate-spin text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <span className="text-sm text-gray-700">Saving purchase…</span>
+          </div>
+        </div>
+      )}
       <h1 className="text-3xl font-bold text-gray-800 mb-6">Create New Purchase</h1>
 
       {/* --- Submission Error --- */}
@@ -274,7 +387,19 @@ function PurchaseForm() {
       {/* --- Section 1: Supplier and Date --- */}
       <section className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold text-gray-700 mb-4 border-b pb-2">Supplier & Date</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Invoice Number Display */}
+          <div>
+            <label htmlFor="invoiceNo" className="block text-sm font-medium text-gray-700">Invoice Number</label>
+            <input
+              type="text"
+              id="invoiceNo"
+              value={invoiceNo}
+              readOnly
+              className="mt-1 block w-full px-3 py-2 rounded-md border-gray-300 bg-gray-100 shadow-sm sm:text-sm"
+            />
+          </div>
+
           {/* Supplier Selection */}
           <div>
             <SearchableSelect
@@ -337,17 +462,17 @@ function PurchaseForm() {
                 id="newSupplierPhone"
                 value={newSupplierPhone}
                 onChange={(e) => setNewSupplierPhone(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                className="mt-1 p-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
             <div>
               <label htmlFor="newSupplierAddress" className="block text-sm font-medium text-gray-700">Address</label>
               <textarea
                 id="newSupplierAddress"
-                rows="2"
+                rows="1"
                 value={newSupplierAddress}
-                onChange={(e) => setNewSupplierAddress(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                onChange={(e) => setNewSupplierAddress(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
+                className="mt-1  p-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
             <div className="flex justify-end gap-2">
@@ -378,22 +503,16 @@ function PurchaseForm() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end p-4 border rounded-md bg-gray-50 mb-6">
           {/* Item Selection */}
           <div className="md:col-span-4">
-            <label htmlFor="itemSelect" className="block text-sm font-medium text-gray-700">Select Item *</label>
-            <select
-              id="itemSelect"
-              value={selectedItemToAdd ? selectedItemToAdd.id : ''}
-              onChange={(e) => setSelectedItemToAdd(itemsData.find((item) => item.id === e.target.value))}
-              disabled={isLoadingItems}
-              ref={itemSelectRef}
-              onKeyDown={handleKeyDown}
-              className="mt-1 block w-full px-3 py-2 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100"
-              required
-            >
-              <option value="">Select Item</option>
-              {itemsData.map((item) => (
-                <option key={item.id} value={item.id}>{`${item.name} (${item.unit})`}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              label="Search Item *"
+              items={itemsData || []}
+              selected={selectedItemToAdd}
+              onSelect={handleItemSelect}
+              onQueryChange={handleItemSearchChange}
+              placeholder="Type to search items..."
+              loading={isLoadingItems}
+              displayValue={(item) => item ? `${item.name} (${item.unit})` : ''}
+            />
           </div>
 
           {/* Quantity */}
@@ -403,10 +522,11 @@ function PurchaseForm() {
               type="number"
               ref={itemQuantityRef}
               id="itemQuantity"
-              min="1"
+              min="0.01"
               step="any" // Allow decimals if needed, otherwise use "1"
               value={itemQuantity}
               onChange={(e) => setItemQuantity(e.target.value)}
+              onFocus={(e) => e.target.select()}
               onKeyDown={handleKeyDown}
               disabled={!selectedItemToAdd}
               className="mt-1 px-3 py-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-100"
@@ -447,7 +567,11 @@ function PurchaseForm() {
             <button
               type="button"
               ref={addItemButtonRef}
-              onClick={handleAddItemClick}
+              onClick={() => {
+                handleAddItemClick();
+                // After adding, refocus to item select for fast entry
+                setTimeout(() => itemSelectRef.current?.focus(), 0);
+              }}
               disabled={!selectedItemToAdd || itemQuantity <= 0 || itemUnitPrice === '' || isNaN(parseFloat(itemUnitPrice))}
               className="w-full inline-flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
             >
@@ -485,7 +609,17 @@ function PurchaseForm() {
                         <tr key={item.tempKey}>
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">{item.itemName} ({item.unit})</td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{item.quantity}</td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{item.unitPrice.toFixed(2)}</td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              onFocus={(e) => e.target.select()}
+                              value={item.unitPrice}
+                              onChange={(e) => handleInlineUnitPriceChange(item.tempKey, e.target.value)}
+                              className="w-28 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-2 py-1"
+                            />
+                          </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{item.totalPrice.toFixed(2)}</td>
                           <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                             <button
@@ -545,6 +679,7 @@ function PurchaseForm() {
             <select
               id="status"
               name="status"
+              defaultValue={STATUS_OPTIONS[1].value}
               value={status}
               onChange={(e) => handleStatusChange(e.target.value)}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
@@ -558,7 +693,7 @@ function PurchaseForm() {
           {/* Paid Amount */}
           <div>
             <label htmlFor="paidAmount" className="block text-sm font-medium text-gray-700">
-              Paid Amount {status !== 'paid' ? '(Optional)' : '*'}
+              Paid Amount {status === 'paid' ? '(Auto-filled)' : '*'}
             </label>
             <input
               type="number"
@@ -569,13 +704,17 @@ function PurchaseForm() {
               value={paidAmount}
               onChange={(e) => handlePaidAmountChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              required={status === 'paid'} // HTML5 required only if status is 'paid'
-              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 ${status !== 'paid' && paidAmount === '' ? 'bg-gray-50' : ''}`} // Style differently if optional and empty
+              disabled={status === 'paid'} // Disable for Full Paid
+              required={status === 'partial'} // Required for Partial Paid
+              className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 ${status === 'paid' ? 'bg-gray-100' : ''}`}
             />
-            {status === 'paid' && parseFloat(paidAmount || 0) !== totalAmount && (
-              <p className="mt-1 text-xs text-orange-600">Warning: Status is 'Paid', but Paid Amount doesn't match Total Amount.</p>
+            {status === 'paid' && (
+              <p className="mt-1 text-xs text-green-600">Full payment automatically set to total amount.</p>
             )}
-            {paidAmount !== '' && (isNaN(parseFloat(paidAmount)) || parseFloat(paidAmount) < 0) && (
+            {status === 'partial' && paidAmount !== '' && parseFloat(paidAmount || 0) > totalAmount && (
+              <p className="mt-1 text-xs text-orange-600">Paid amount cannot exceed total amount.</p>
+            )}
+            {status === 'partial' && paidAmount !== '' && (isNaN(parseFloat(paidAmount)) || parseFloat(paidAmount) < 0) && (
               <p className="mt-1 text-xs text-red-600">Please enter a valid non-negative number.</p>
             )}
           </div>

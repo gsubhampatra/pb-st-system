@@ -1,10 +1,10 @@
 
 import express from 'express';
-import { printInvoice } from '../controllers/print.controller.js';
+import { printInvoice } from '../controllers/print.controller.optimized.js';
 
 const router = express.Router();
 
-router.post('/purchase', printInvoice);
-
+// Print purchase or sale invoice
+router.post('/invoice', printInvoice);
 
 export default router;

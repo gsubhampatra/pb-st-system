@@ -73,86 +73,293 @@ const PurchaseDetail = ({ purchaseId }) => {
 
   const handleThermalPrint = () => {
     const content = `
+      <!DOCTYPE html>
       <html>
         <head>
-          <title>Patra Bhandar</title>
+          <meta charset="UTF-8">
+          <title>Purchase Invoice - ${purchase.invoiceNo}</title>
           <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            @page {
+              size: A5;
+              margin: 10mm;
+            }
+            
             body {
-              font-family: monospace;
-              font-size: 10px;
-              padding: 5px;
-              margin: 0;
-              width: 58mm;
+              font-family: 'Arial', 'Helvetica', sans-serif;
+              font-size: 10pt;
+              line-height: 1.3;
+              color: #000;
             }
-            h2, p {
-              margin: 0;
+            
+            .invoice-container {
+              max-width: 100%;
+            }
+            
+            /* Header */
+            .invoice-header {
               text-align: center;
+              margin-bottom: 12px;
+              border-bottom: 2px solid #000;
+              padding-bottom: 8px;
             }
-            table {
+            
+            .company-name {
+              font-size: 18pt;
+              font-weight: bold;
+              margin-bottom: 2px;
+              text-transform: uppercase;
+            }
+            
+            .invoice-title {
+              font-size: 12pt;
+              font-weight: 600;
+              margin-top: 4px;
+            }
+            
+            /* Invoice Info Section */
+            .invoice-info {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 12px;
+              gap: 15px;
+              font-size: 9pt;
+            }
+            
+            .invoice-meta, .supplier-info {
+              flex: 1;
+            }
+            
+            .section-title {
+              font-weight: bold;
+              margin-bottom: 4px;
+              border-bottom: 1px solid #000;
+              padding-bottom: 2px;
+            }
+            
+            .info-row {
+              margin-bottom: 2px;
+            }
+            
+            .info-label {
+              font-weight: 600;
+              display: inline-block;
+              min-width: 70px;
+            }
+            
+            /* Items Table */
+            .items-table {
               width: 100%;
               border-collapse: collapse;
-              margin-top: 6px;
+              margin-bottom: 12px;
+              font-size: 9pt;
             }
-            td {
-              padding: 2px 0;
+            
+            .items-table th,
+            .items-table td {
+              border: 1px solid #000;
+              padding: 4px 6px;
+            }
+            
+            .items-table th {
+              background-color: #f0f0f0;
+              font-weight: bold;
               text-align: left;
             }
-            .right {
+            
+            .items-table th.text-right,
+            .items-table td.text-right {
               text-align: right;
             }
-            .line {
-              border-top: 1px dashed #000;
-              margin: 6px 0;
+            
+            .items-table th.text-center,
+            .items-table td.text-center {
+              text-align: center;
+            }
+            
+            /* Summary Section */
+            .summary-section {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 12px;
+            }
+            
+            .summary-table {
+              width: 250px;
+              font-size: 9pt;
+            }
+            
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 4px 8px;
+              border: 1px solid #000;
+              margin-bottom: -1px;
+            }
+            
+            .summary-row.total {
+              background-color: #e0e0e0;
+              font-weight: bold;
+              font-size: 10pt;
+            }
+            
+            .summary-label {
+              font-weight: 600;
+            }
+            
+            .summary-value {
+              font-weight: 700;
+            }
+            
+            /* Footer */
+            .invoice-footer {
+              margin-top: 15px;
+              padding-top: 8px;
+              border-top: 1px solid #000;
+              text-align: center;
+              font-size: 8pt;
+            }
+            
+            .footer-contact {
+              margin-bottom: 4px;
+            }
+            
+            .footer-note {
+              font-style: italic;
+              color: #333;
+            }
+            
+            /* Print Styles */
+            @media print {
+              body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              
+              .no-print {
+                display: none !important;
+              }
             }
           </style>
         </head>
         <body>
-          <h2>PURCHASE INVOICE</h2>
-          <p>Invoice No: ${purchase.invoiceNo}</p>
-          <p>Date: ${format(new Date(purchase.date), 'dd/MM/yyyy')}</p>
-          <p>Supplier: ${purchase.supplier?.name || ''}</p>
-          <div class="line"></div>
-  
-          <table>
-            ${purchase.items
-        .map(
-          (item, i) => `
-              <tr>
-                <td>${i + 1}. ${item.item.name.split('-')[0].trim()}</td>
-                <td class="right">${item.quantity} x ${item.unitPrice.toFixed(2)}</td>
-                <td class="right">${(item.quantity * item.unitPrice).toFixed(2)}</td>
-              </tr>`
-        )
-        .join('')}
-          </table>
-  
-          <div class="line"></div>
-          <table>
-            <tr><td>Total</td><td class="right">₹${purchase.totalAmount.toFixed(2)}</td></tr>
-            <tr><td>Paid</td><td class="right">₹${purchase.paidAmount.toFixed(2)}</td></tr>
-            <tr><td>Due</td><td class="right">₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}</td></tr>
-          </table>
-  
-          <div class="line"></div>
-          <p>Contact: 7847916571</p>
-          <p>Thank you!</p>
+          <div class="invoice-container">
+            <!-- Header -->
+            <div class="invoice-header">
+              <div class="company-name">Patra Bhandar</div>
+              <div class="invoice-title">Purchase Invoice</div>
+            </div>
+            
+            <!-- Invoice Info -->
+            <div class="invoice-info">
+              <div class="invoice-meta">
+                <div class="section-title">Invoice Details</div>
+                <div class="info-row">
+                  <span class="info-label">Invoice No:</span>
+                  <span>${purchase.invoiceNo}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Date:</span>
+                  <span>${format(new Date(purchase.date), 'dd/MM/yyyy')}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Status:</span>
+                  <span style="text-transform: capitalize;">${purchase.status}</span>
+                </div>
+              </div>
+              
+              <div class="supplier-info">
+                <div class="section-title">Supplier Details</div>
+                <div class="info-row">
+                  <span class="info-label">Name:</span>
+                  <span>${purchase.supplier?.name || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Phone:</span>
+                  <span>${purchase.supplier?.phone || 'N/A'}</span>
+                </div>
+                ${purchase.supplier?.address ? `
+                <div class="info-row">
+                  <span class="info-label">Address:</span>
+                  <span>${purchase.supplier.address}</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <!-- Items Table -->
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th style="width: 5%;">#</th>
+                  <th style="width: 45%;">Item</th>
+                  <th class="text-center" style="width: 10%;">Unit</th>
+                  <th class="text-right" style="width: 12%;">Qty</th>
+                  <th class="text-right" style="width: 14%;">Rate</th>
+                  <th class="text-right" style="width: 14%;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${purchase.items
+                  .map(
+                    (item, i) => `
+                    <tr>
+                      <td class="text-center">${i + 1}</td>
+                      <td>${item.item.name}</td>
+                      <td class="text-center">${item.item.unit}</td>
+                      <td class="text-right">${item.quantity}</td>
+                      <td class="text-right">₹${item.unitPrice.toFixed(2)}</td>
+                      <td class="text-right">₹${(item.quantity * item.unitPrice).toFixed(2)}</td>
+                    </tr>
+                  `
+                  )
+                  .join('')}
+              </tbody>
+            </table>
+            
+            <!-- Summary -->
+            <div class="summary-section">
+              <div class="summary-table">
+                <div class="summary-row total">
+                  <span class="summary-label">Total:</span>
+                  <span class="summary-value">₹${purchase.totalAmount.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-label">Paid:</span>
+                  <span class="summary-value">₹${purchase.paidAmount.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                  <span class="summary-label">Due:</span>
+                  <span class="summary-value">₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="invoice-footer">
+              <div class="footer-contact">
+                Contact: 7847916571
+              </div>
+              <div class="footer-note">
+                Thank you for your business!
+              </div>
+            </div>
+          </div>
         </body>
       </html>`;
 
-    const printWindow = window.open('', '', 'width=1056,height=1480');
-    printWindow.document.write(`
-      <style>
-        @media print {
-          @page {
-            size: A6;
-            margin: 0;
-          }
-        }
-      </style>
-    ` + content);
+    const printWindow = window.open('', '', 'width=595,height=842');
+    printWindow.document.write(content);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   };
 
   const generateShareMessage = () => {

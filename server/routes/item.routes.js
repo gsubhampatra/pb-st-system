@@ -1,20 +1,23 @@
-// src/routes/item.routes.js
 import express from 'express';
 import {
     createItem,
-    getAllItems,
+    getItems,
     getItemById,
     updateItem,
-    deleteItem
-} from '../controllers/item.controller.js'; // Adjust path if needed
+    deleteItem,
+    updateStock
+} from '../controllers/item.controller.optimized.js';
+import { validate, itemSchema, itemUpdateSchema } from '../middleware/validate.js';
 
 const router = express.Router();
 
-// Define routes for Items
-router.post('/', createItem);       // POST /api/items
-router.get('/', getAllItems);      // GET /api/items
-router.get('/:id', getItemById);   // GET /api/items/some-cuid
-router.put('/:id', updateItem);    // PUT /api/items/some-cuid
-router.delete('/:id', deleteItem); // DELETE /api/items/some-cuid
+// Define routes for Items with validation
+router.post('/', validate(itemSchema), createItem);
+router.get('/', getItems);
+router.get('/:id', getItemById);
+// Allow partial updates on PUT with relaxed schema
+router.put('/:id', validate(itemUpdateSchema), updateItem);
+router.delete('/:id', deleteItem);
+router.patch('/:id/stock', updateStock);
 
 export default router;

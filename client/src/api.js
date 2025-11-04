@@ -1,15 +1,29 @@
-// File relocated to src/services/api.js
-
 import axios from "axios";
-const API_BASE_URL = import.meta.env.VITE_API_URL + "/api";
+
+// Prefer VITE_API_URL with fallback to localhost
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE_URL = `${BASE}/api`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
 });
+
+// Basic interceptors for logging; keep response shape unchanged
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Optional: attach normalized message
+    if (error.response) {
+      error.normalizedMessage = error.response?.data?.message || error.message;
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const API_PATHS = {
   items: {
@@ -78,6 +92,11 @@ export const API_PATHS = {
   },
   print: {
     printInvoice: `/print/purchase`,
+  },
+  database: {
+    stats: `/database/stats`,
+    clear: `/database/clear`,
+    reset: `/database/reset`,
   },
 };
 
