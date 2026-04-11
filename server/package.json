@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "build:client": "npm --prefix ../client run build",
+    "build": "npm run build:client",
+    "start:prod": "node index.js"
   },
   "keywords": [],
   "author": "",

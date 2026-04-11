@@ -1,16 +1,40 @@
 import express from "express";
 import "dotenv/config";
 import cors from "cors";
-import { errorHandler } from "./middleware/errorHandler.js";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientDistPath = path.resolve(__dirname, "../client/dist");
+const clientIndexPath = path.join(clientDistPath, "index.html");
+const hasClientBuild = fs.existsSync(clientIndexPath);
+
+const corsOrigin = process.env.CORS_ORIGIN;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
+if (corsOrigin) {
+  const allowList = corsOrigin
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
+  app.use(
+    cors({
+      origin: allowList,
+      credentials: true,
+    })
+  );
+} else {
+  app.use(cors());
+}
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ ok: true, uptime: process.uptime() });
 });
 
 //router imports
@@ -39,10 +63,31 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/print", printRoutes);
 app.use("/api/database", databaseRoutes);
 
+app.use("/api", notFound);
+
 // Error handler middleware (must be last)
 app.use(errorHandler);
 
+if (hasClientBuild) {
+  app.use(express.static(clientDistPath));
+
+  app.get("/{*splat}", (req, res, next) => {
+    if (req.path.startsWith("/api")) {
+      return next();
+    }
+    return res.sendFile(clientIndexPath);
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.status(200).send("API is running. Build client with: npm --prefix ../client run build");
+  });
+}
+
 const port = process.env.PORT || 3000;
-app.listen(port,  () => {
-  console.log(`Server is running on port ${port}`);
+const host = process.env.HOST || "0.0.0.0";
+app.listen(port, host, () => {
+  console.log(`Server is running on http://${host}:${port}`);
+  if (hasClientBuild) {
+    console.log("Serving frontend from client/dist");
+  }
 });
