@@ -3,7 +3,7 @@ import Joi from 'joi';
 // Input validation schemas
 export const purchaseSchema = Joi.object({
   supplierId: Joi.string().required(),
-  invoiceNo: Joi.string().required(),
+  invoiceNo: Joi.string().optional(),
   date: Joi.date().required(),
   items: Joi.array()
     .items(
@@ -39,7 +39,6 @@ export const itemSchema = Joi.object({
 
 // Update schema: allow partial updates, require at least one key
 export const itemUpdateSchema = Joi.object({
-  id: Joi.string().required(),
   name: Joi.string().optional(),
   category: Joi.string().allow('', null).optional(),
   unit: Joi.string().optional(),

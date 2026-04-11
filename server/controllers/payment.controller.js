@@ -21,26 +21,25 @@ export const createPayment = async (req, res) => {
     }
 
     try {
-        // --- Use Prisma Transaction (especially important if updating account balance) ---
+        const transactionOptions = {
+            maxWait: 10000,
+            timeout: 15000,
+        };
+
+        // Keep the transaction short: only the balance update and payment write run inside it.
         const newPayment = await prisma.$transaction(async (tx) => {
-
-      
-
             let validatedAccountId = null;
-            // 2. If method is 'account', validate Account and update balance
+
             if (method === 'account') {
                 const account = await tx.account.findUnique({
-                    where: { id: accountId }
+                    where: { id: accountId },
+                    select: { id: true },
                 });
+
                 if (!account) {
                     throw new Error(`Account with ID ${accountId} not found.`);
                 }
-                // Optional: Check for sufficient balance before allowing payment
-                // if (account.balance < amount) {
-                //     throw new Error(`Insufficient balance in account ${accountId}. Available: ${account.balance}, Required: ${amount}`);
-                // }
 
-                // Decrement account balance
                 await tx.account.update({
                     where: { id: accountId },
                     data: {
@@ -49,27 +48,25 @@ export const createPayment = async (req, res) => {
                         },
                     },
                 });
-                validatedAccountId = accountId; // Store validated ID
+
+                validatedAccountId = accountId;
             }
 
-            // 3. Create the Payment record
-            const payment = await tx.payment.create({
+            return tx.payment.create({
                 data: {
-                    supplierId: supplierId,
-                    amount: amount,
-                    method: method,
-                    accountId: validatedAccountId, // Use null if cash, validated ID if account
+                    supplierId,
+                    amount,
+                    method,
+                    accountId: validatedAccountId,
                     date: new Date(date),
-                    note: note, // Optional
+                    note,
                 },
-                include: { // Include related data in the response
+                include: {
                     supplier: { select: { name: true } },
-                    account: { select: { bankName: true, accountNumber: true } } // Include if account was used
-                }
+                    account: { select: { bankName: true, accountNumber: true } },
+                },
             });
-
-            return payment; // Return the created payment from the transaction
-        }); // End of Prisma Transaction
+        }, transactionOptions);
 
         res.status(201).json(newPayment);
 

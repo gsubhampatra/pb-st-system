@@ -3,6 +3,7 @@ import { api, API_PATHS } from '../../api';
 import { FiPrinter } from 'react-icons/fi';
 import { useRef } from 'react';
 import { format } from 'date-fns';
+import { formatINR } from '../../utils/currency';
 
 const PaymentDetail = ({ paymentId }) => {
   const printRef = useRef();
@@ -91,7 +92,7 @@ const PaymentDetail = ({ paymentId }) => {
             </div>
             <div class="row">
               <div class="label">Amount:</div>
-              <div>$${payment.amount.toFixed(2)}</div>
+              <div>${formatINR(payment.amount)}</div>
             </div>
             <div class="row">
               <div class="label">Method:</div>
@@ -186,7 +187,7 @@ const PaymentDetail = ({ paymentId }) => {
             <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
               <dt className="text-sm font-medium text-gray-500">Amount</dt>
               <dd className="mt-1 text-sm font-bold text-red-600 sm:mt-0 sm:col-span-2">
-                ${payment.amount.toFixed(2)}
+                {formatINR(payment.amount)}
               </dd>
             </div>
             <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">

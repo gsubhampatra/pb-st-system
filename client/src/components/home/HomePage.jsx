@@ -75,38 +75,38 @@ const HomePage = () => {
     //   path: '/accounts',
     //   color: 'bg-gradient-to-br from-fuchsia-500 to-fuchsia-600'
     // },
-    // {
-    //   id: 'payments',
-    //   title: 'Payments Management',
-    //   description: 'Record and track payments to suppliers',
-    //   icon: <FiDollarSign />,
-    //   path: '/payments',
-    //   color: 'bg-gradient-to-br from-sky-500 to-sky-600'
-    // },
-    // {
-    //   id: 'new-payment',
-    //   title: 'Create New Payment',
-    //   description: 'Record a new payment to suppliers',
-    //   icon: <FiDollarSign />,
-    //   path: '/payments/new',
-    //   color: 'bg-gradient-to-br from-teal-500 to-teal-600'
-    // },
-    // {
-    //   id: 'receipts',
-    //   title: 'Receipts Management',
-    //   description: 'Record and track receipts from customers',
-    //   icon: <FiFileText />,
-    //   path: '/receipts',
-    //   color: 'bg-gradient-to-br from-orange-500 to-orange-600'
-    // },
-    // {
-    //   id: 'new-receipt',
-    //   title: 'Create New Receipt',
-    //   description: 'Record a new receipt from customers',
-    //   icon: <FiFileText />,
-    //   path: '/receipts/new',
-    //   color: 'bg-gradient-to-br from-red-500 to-red-600'
-    // },
+    {
+      id: 'payments',
+      title: 'Payments Management',
+      description: 'Record and track payments to suppliers',
+      icon: <FiDollarSign />,
+      path: '/payments',
+      color: 'bg-gradient-to-br from-sky-500 to-sky-600'
+    },
+    {
+      id: 'new-payment',
+      title: 'Create New Payment',
+      description: 'Record a new payment to suppliers',
+      icon: <FiDollarSign />,
+      path: '/payments/new',
+      color: 'bg-gradient-to-br from-teal-500 to-teal-600'
+    },
+    {
+      id: 'receipts',
+      title: 'Receipts Management',
+      description: 'Record and track receipts from customers',
+      icon: <FiFileText />,
+      path: '/receipts',
+      color: 'bg-gradient-to-br from-orange-500 to-orange-600'
+    },
+    {
+      id: 'new-receipt',
+      title: 'Create New Receipt',
+      description: 'Record a new receipt from customers',
+      icon: <FiFileText />,
+      path: '/receipts/new',
+      color: 'bg-gradient-to-br from-red-500 to-red-600'
+    },
     {
       id: 'reports',
       title: 'Reports and Analytics',

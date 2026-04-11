@@ -42,7 +42,13 @@ const ReportsPage = () => {
   const fetchSummary = async () => {
     try {
       const response = await api.get(API_PATHS.reports.getSummary);
-      setSummary(response.data);
+      const data = response.data || {};
+      setSummary({
+        totalPurchases: data.totalPurchases ?? data.purchases ?? 0,
+        totalSales: data.totalSales ?? data.sales ?? 0,
+        totalPayments: data.totalPayments ?? data.payments ?? 0,
+        totalReceipts: data.totalReceipts ?? data.receipts ?? 0,
+      });
     } catch (error) {
       console.error('Error fetching summary:', error);
     }
@@ -51,8 +57,13 @@ const ReportsPage = () => {
   const fetchHistory = async () => {
     try {
       const response = await api.get(API_PATHS.reports.getDownloadHistory);
-      // Server returns { downloads: [...] }
-      setHistory(response.data?.downloads || []);
+      // Support both shapes: [{...}] and { downloads: [...] }
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setHistory(data);
+      } else {
+        setHistory(data?.downloads || []);
+      }
     } catch (error) {
       console.error('Error fetching history:', error);
     }
@@ -95,19 +106,22 @@ const ReportsPage = () => {
   const downloadReport = async (type) => {
     setLoading(true);
     try {
-      // Map UI type to server-supported reportType
-      const typeMap = { purchase: 'purchase', sale: 'sales', stock: 'stock' };
-      const reportType = typeMap[type];
-      if (!reportType) {
-        alert('This report type is not supported for export.');
-        return;
-      }
-
-      const { start, end } = buildDateRange();
       const params = new URLSearchParams();
-      params.set('reportType', reportType);
-      if (start) params.set('startDate', start.toISOString());
-      if (end) params.set('endDate', end.toISOString());
+
+      // Normal controller expects type + filter (+ month/year or date)
+      const typeMap = { purchase: 'purchase', sale: 'sale', payment: 'payment', receipt: 'receipt' };
+      const reportType = typeMap[type] || type;
+
+      params.set('type', reportType);
+      params.set('filter', filter);
+
+      if (filter === 'month') {
+        params.set('month', month);
+        params.set('year', year);
+      }
+      if (filter === 'date' && date) {
+        params.set('date', date);
+      }
 
       const response = await api.get(`${API_PATHS.reports.download}?${params.toString()}`, {
         responseType: 'blob'
@@ -116,7 +130,7 @@ const ReportsPage = () => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${reportType}_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      link.download = `${type}_report_${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -211,7 +225,7 @@ const ReportsPage = () => {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            {['purchase', 'sale', 'stock'].map((type) => (
+            {['purchase', 'sale', 'payment', 'receipt'].map((type) => (
               <button
                 key={type}
                 onClick={() => downloadReport(type)}
@@ -248,10 +262,10 @@ const ReportsPage = () => {
                   history.map((item) => (
                     <tr key={item.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {(item.reportType || '').charAt(0).toUpperCase() + (item.reportType || '').slice(1)}
+                        {((item.reportType || item.type) || '').charAt(0).toUpperCase() + ((item.reportType || item.type) || '').slice(1)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.downloadedAt ? new Date(item.downloadedAt).toLocaleString() : ''}
+                        {(item.downloadedAt || item.date) ? new Date(item.downloadedAt || item.date).toLocaleString() : ''}
                       </td>
                     </tr>
                   ))

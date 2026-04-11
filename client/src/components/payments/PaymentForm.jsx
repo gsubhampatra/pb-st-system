@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { api, API_PATHS } from '../../api';
-import { useSuppliers } from '../../contexts/SupplierContext';
-import { FiSearch } from 'react-icons/fi';
+import SupplierSelect from '../ui/SupplierSelect';
+import { formatINR } from '../../utils/currency';
 
 const PaymentForm = ({ payment, onSuccess }) => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     supplierId: '',
     amount: '',
@@ -15,18 +17,20 @@ const PaymentForm = ({ payment, onSuccess }) => {
     date: format(new Date(), 'yyyy-MM-dd'),
     note: '',
   });
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [errors, setErrors] = useState({});
 
-  // Use the SupplierContext for searching and selecting suppliers
-  const { 
-    suppliers, 
-    isLoading: suppliersLoading, 
-    searchTerm, 
-    setSearchTerm 
-  } = useSuppliers();
+  const handleDone = () => {
+    if (typeof onSuccess === 'function') {
+      onSuccess();
+      return;
+    }
+
+    navigate('/payments');
+  };
 
   // Fetch accounts for dropdown (when method is 'account')
-  const { data: accounts, isLoading: accountsLoading } = useQuery({
+  const { data: accounts } = useQuery({
     queryKey: ['accounts'],
     queryFn: async () => {
       const response = await api.get(API_PATHS.accounts.getAll);
@@ -41,6 +45,7 @@ const PaymentForm = ({ payment, onSuccess }) => {
       api.get(API_PATHS.payments.getById(payment.id))
         .then(response => {
           const paymentData = response.data;
+          setSelectedSupplier(paymentData.supplier || null);
           setFormData({
             supplierId: paymentData.supplierId,
             amount: paymentData.amount,
@@ -76,6 +81,7 @@ const PaymentForm = ({ payment, onSuccess }) => {
 
   // Handle supplier selection
   const handleSelectSupplier = (supplier) => {
+    setSelectedSupplier(supplier);
     setFormData(prev => ({
       ...prev,
       supplierId: supplier.id
@@ -136,7 +142,7 @@ const PaymentForm = ({ payment, onSuccess }) => {
     onSuccess: () => {
       queryClient.invalidateQueries(['payments']);
       queryClient.invalidateQueries(['accounts']); // Refresh accounts as balance might change
-      onSuccess();
+      handleDone();
     },
     onError: (error) => {
       console.error('Error saving payment:', error);
@@ -174,64 +180,24 @@ const PaymentForm = ({ payment, onSuccess }) => {
 
       {/* Supplier Selection - disabled when editing */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Supplier *
-        </label>
-        
         {payment ? (
-          // When editing, just show the supplier name
-          <select
-            name="supplierId"
-            value={formData.supplierId}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            disabled={true}
-          >
-            <option value={formData.supplierId}>{payment?.supplier?.name || "Selected Supplier"}</option>
-          </select>
-        ) : (
-          // When creating new, show search and selection
-          <div className="space-y-2">
-            {/* Search Box */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FiSearch className="text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Search suppliers by name..."
-              />
-            </div>
-
-            {/* Suppliers List */}
-            <div className="border rounded-md max-h-40 overflow-y-auto">
-              {suppliersLoading ? (
-                <div className="text-center py-2">Loading suppliers...</div>
-              ) : suppliers?.length ? (
-                <div className="divide-y divide-gray-200">
-                  {suppliers.map((supplier) => (
-                    <div 
-                      key={supplier.id} 
-                      className={`p-2 hover:bg-gray-50 cursor-pointer ${formData.supplierId === supplier.id ? 'bg-blue-50' : ''}`}
-                      onClick={() => handleSelectSupplier(supplier)}
-                    >
-                      <div className="font-medium text-gray-900">{supplier.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {supplier.phone || 'No phone'} • Balance: ${supplier.balance?.toFixed(2) || '0.00'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-2 text-gray-500">
-                  {searchTerm ? 'No suppliers found matching your search' : 'No suppliers available'}
-                </div>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Supplier *
+            </label>
+            <input
+              type="text"
+              value={selectedSupplier?.name || 'Selected Supplier'}
+              disabled
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 bg-gray-100 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
+        ) : (
+          <SupplierSelect
+            label="Supplier *"
+            selected={selectedSupplier}
+            onSelect={handleSelectSupplier}
+          />
         )}
         {errors.supplierId && <p className="mt-1 text-sm text-red-600">{errors.supplierId}</p>}
       </div>
@@ -243,7 +209,7 @@ const PaymentForm = ({ payment, onSuccess }) => {
         </label>
         <div className="mt-1 relative rounded-md shadow-sm">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <span className="text-gray-500 sm:text-sm">$</span>
+            <span className="text-gray-500 sm:text-sm">₹</span>
           </div>
           <input
             type="number"
@@ -321,7 +287,7 @@ const PaymentForm = ({ payment, onSuccess }) => {
             <option value="">Select an Account</option>
             {accounts?.map(account => (
               <option key={account.id} value={account.id}>
-                {account.bankName} - {account.accountNumber} (Balance: ${account.balance.toFixed(2)})
+                {account.bankName} - {account.accountNumber} (Balance: {formatINR(account.balance)})
               </option>
             ))}
           </select>
@@ -366,7 +332,7 @@ const PaymentForm = ({ payment, onSuccess }) => {
       <div className="flex justify-end pt-4">
         <button
           type="button"
-          onClick={onSuccess}
+          onClick={handleDone}
           className="mr-2 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
         >
           Cancel

@@ -5,7 +5,7 @@ import {
     getPurchaseById,
     updatePurchase,
     deletePurchase,
-} from '../controllers/purchase.controller.optimized.js';
+} from '../controllers/purchase.controller.js';
 import { validate, purchaseSchema } from '../middleware/validate.js';
 
 const router = express.Router();

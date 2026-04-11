@@ -9,7 +9,7 @@ import SalesPage from './components/sales/SalesPage';
 import Navbar from './components/Navbar';
 import HomePage from './components/home/HomePage';
 import AccountsPage from './components/accounts/AccountsPage';
-import PaymentTable from './components/payments/PaymentTable';
+import PaymentPage from './components/payments/PaymentPage';
 import PaymentForm from './components/payments/PaymentForm';
 import ReceiptTable from './components/receipt/ReceiptTable';
 import ReceiptForm from './components/receipt/ReceiptForm';
@@ -27,11 +27,11 @@ function App() {
       <CustomerProvider>
         <SupplierProvider>
           <ItemProvider>
-            <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+            <div className="app-shell min-h-screen bg-gray-50 flex flex-col md:flex-row">
               <Navbar />
               {/* Main Content Area */}
-              <main className="flex-1 p-4 md:ml-0">
-                <div className="max-w-7xl mx-auto">
+              <main className="app-main flex-1 p-3 sm:p-4 md:ml-0 md:p-6">
+                <div className="mx-auto w-full max-w-7xl pb-24 md:pb-0">
                   {/* Define the Routes */}
                   <Routes>
                   {/* Home Page */}
@@ -61,7 +61,7 @@ function App() {
                   <Route path="/accounts" element={<AccountsPage />} />
 
                   {/* Payments Routes */}
-                  <Route path="/payments" element={<PaymentTable />} />
+                  <Route path="/payments" element={<PaymentPage />} />
                   <Route path="/payments/new" element={<PaymentForm />} />
 
                   {/* Receipts Routes */}

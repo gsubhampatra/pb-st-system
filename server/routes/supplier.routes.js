@@ -5,7 +5,7 @@ import {
     getSupplierById,
     updateSupplier,
     deleteSupplier
-} from '../controllers/supplier.controller.optimized.js';
+} from '../controllers/supplier.controller.js';
 import { validate, supplierSchema } from '../middleware/validate.js';
 
 const router = express.Router();

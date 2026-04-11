@@ -2,7 +2,14 @@ import { Prisma } from "@prisma/client";
 import prisma from "../prisma/prisma.js";
 // --- Create Sale ---
 export const createSale = async (req, res) => {
-    const { customerId, date, items, receivedAmount = 0, status = 'recorded' } = req.body;
+    const {
+        customerId,
+        date,
+        items,
+        invoiceNumber,
+        paidAmount = 0,
+        status = 'pending',
+    } = req.body;
     // 'items' should be an array like: [{ itemId: 'cuid1', quantity: 2, unitPrice: 15.00 }, ...]
 
     // --- Basic Input Validation ---
@@ -71,9 +78,10 @@ export const createSale = async (req, res) => {
             const newSale = await tx.sale.create({
                 data: {
                     customerId: customerId,
+                    invoiceNumber: invoiceNumber || `S-${Date.now()}`,
                     date: new Date(date), // Ensure it's a Date object
                     totalAmount: totalAmount,
-                    receivedAmount: receivedAmount,
+                    paidAmount: paidAmount,
                     status: status,
                     // items will be linked in the next step
                 },
@@ -234,14 +242,14 @@ export const getSaleById = async (req, res) => {
 // NOTE: Updating items within a sale is complex (often handled via returns/adjustments).
 export const updateSale = async (req, res) => {
     const { id } = req.params;
-    const { receivedAmount, status } = req.body;
+    const { paidAmount, status } = req.body;
 
     // Validate that at least one valid field is provided
-    if (typeof receivedAmount === 'undefined' && !status) {
-        return res.status(400).json({ message: 'No valid fields (receivedAmount, status) provided for update' });
+    if (typeof paidAmount === 'undefined' && !status) {
+        return res.status(400).json({ message: 'No valid fields (paidAmount, status) provided for update' });
     }
-    if (typeof receivedAmount !== 'undefined' && typeof receivedAmount !== 'number') {
-         return res.status(400).json({ message: 'Invalid receivedAmount, must be a number' });
+    if (typeof paidAmount !== 'undefined' && typeof paidAmount !== 'number') {
+         return res.status(400).json({ message: 'Invalid paidAmount, must be a number' });
     }
     // Add status validation if you have specific allowed statuses
 
@@ -261,7 +269,7 @@ export const updateSale = async (req, res) => {
         const updatedSale = await prisma.sale.update({
             where: { id: id },
             data: {
-                ...(typeof receivedAmount === 'number' && { receivedAmount }),
+                ...(typeof paidAmount === 'number' && { paidAmount }),
                 ...(status && { status }),
             },
             include: { // Return the updated sale with details

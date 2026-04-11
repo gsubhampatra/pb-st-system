@@ -1,12 +1,12 @@
 .home-container {
-  padding: 1.5rem;
+  padding: 1rem;
   max-width: 1200px;
   margin: 0 auto;
 }
 
 .home-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
 }
 
 .home-header h1 {
@@ -22,17 +22,18 @@
 
 .cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
 }
 
 .nav-card {
   display: flex;
   align-items: center;
-  background-color: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 20px;
+  padding: 1.1rem;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
   transition: all 0.3s ease;
   cursor: pointer;
 }
@@ -46,11 +47,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, #4a90e2, #6773e9);
-  border-radius: 12px;
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  border-radius: 18px;
   margin-right: 1rem;
+  flex-shrink: 0;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
 }
 
 .card-icon svg {
@@ -77,21 +80,21 @@
   }
   
   .home-header h1 {
-    font-size: 1.75rem;
+    font-size: 1.55rem;
   }
   
   .nav-card {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 }
 
 @media (max-width: 480px) {
   .home-container {
-    padding: 1rem;
+    padding: 0.875rem;
   }
   
   .home-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
   }
   
   .home-header p {
@@ -99,11 +102,16 @@
   }
   
   .card-icon {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
   }
   
   .card-content h3 {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
+  }
+
+  .card-content p {
+    font-size: 0.85rem;
+    line-height: 1.35;
   }
 }

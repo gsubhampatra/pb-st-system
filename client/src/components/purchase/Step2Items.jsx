@@ -1,25 +1,26 @@
 // src/features/purchase/Step2Items.jsx
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import SearchableSelect from './ui/SearchableSelect';
 import debounce from 'lodash.debounce';
 import { FaTrashAlt } from 'react-icons/fa'; // Example icon
 import { api, API_PATHS } from '../../api';
 
-function Step2Items({ purchaseItems, onAddItem, onRemoveItem, onUpdateItem, onGoToPrev, onGoToNext }) {
+function Step2Items({ purchaseItems, onAddItem, onRemoveItem, onGoToPrev, onGoToNext }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState('');
+  const debouncedSetSearchTermRef = useRef(null);
 
   // --- Fetch Items ---
-   const debouncedSetSearchTerm = useCallback(
-    debounce((value) => setSearchTerm(value), 300),
-    []
-  );
+  useEffect(() => {
+    debouncedSetSearchTermRef.current = debounce((value) => setSearchTerm(value), 300);
+    return () => debouncedSetSearchTermRef.current?.cancel();
+  }, []);
 
   const handleSearchChange = (query) => {
-    debouncedSetSearchTerm(query);
+    debouncedSetSearchTermRef.current?.(query);
   };
 
   const { data: itemsData, isLoading: isLoadingItems } = useQuery({

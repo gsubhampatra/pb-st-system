@@ -30,4 +30,10 @@ export default [
       ],
     },
   },
+  {
+    files: ['src/contexts/*.jsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ]

@@ -2,21 +2,22 @@ import { Prisma } from "@prisma/client";
 import prisma from "../prisma/prisma.js";
 // --- Create Item ---
 export const createItem = async (req, res) => {
-    const { name, description, unit, basePrice, currentStock } = req.body;
+    const { name, category, unit, basePrice, sellingPrice, stock } = req.body;
 
     // Basic validation
-    if (!name || !unit || typeof basePrice !== 'number' || typeof currentStock !== 'number') {
-        return res.status(400).json({ message: 'Missing or invalid required fields: name, unit, basePrice, currentStock' });
+    if (!name || !unit || typeof basePrice !== 'number' || typeof stock !== 'number') {
+        return res.status(400).json({ message: 'Missing or invalid required fields: name, unit, basePrice, stock' });
     }
 
     try {
         const newItem = await prisma.item.create({
             data: {
                 name,
-                description, // Optional, will be null if not provided
+                category,
                 unit,
                 basePrice,
-                currentStock,
+                sellingPrice,
+                stock,
             },
         });
         res.status(201).json(newItem); // 201 Created
@@ -29,11 +30,17 @@ export const createItem = async (req, res) => {
 
 // --- Get All Items ---
 export const getAllItems = async (req, res) => {
-    // Optional: Add pagination/filtering later via req.query
-    // const { page = 1, limit = 10, search = '' } = req.query;
+    const { search } = req.query;
     try {
+        const whereClause = search ? {
+            OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { category: { contains: search, mode: 'insensitive' } },
+            ],
+        } : {};
+
         const items = await prisma.item.findMany({
-             // Add where, skip, take for filtering/pagination if needed
+             where: whereClause,
              orderBy: { name: 'asc' } // Optional: order by name
         });
         res.status(200).json(items);
@@ -68,10 +75,10 @@ export const getItemById = async (req, res) => {
 // --- Update Item ---
 export const updateItem = async (req, res) => {
     const { id } = req.params;
-    const { name, description, unit, basePrice, currentStock } = req.body;
+    const { name, category, unit, basePrice, sellingPrice, stock } = req.body;
 
     // Basic validation: Ensure at least one field is being updated
-    if (!name && !description && !unit && typeof basePrice !== 'number' && typeof currentStock !== 'number') {
+    if (name === undefined && category === undefined && unit === undefined && basePrice === undefined && sellingPrice === undefined && stock === undefined) {
         return res.status(400).json({ message: 'No valid fields provided for update' });
     }
 
@@ -81,10 +88,11 @@ export const updateItem = async (req, res) => {
             data: {
                 // Only include fields that are present in the request body
                 ...(name && { name }),
-                ...(description !== undefined && { description }), // Allow setting description to null/empty
+                ...(category !== undefined && { category }),
                 ...(unit && { unit }),
                 ...(typeof basePrice === 'number' && { basePrice }),
-                ...(typeof currentStock === 'number' && { currentStock }),
+                ...(typeof sellingPrice === 'number' && { sellingPrice }),
+                ...(typeof stock === 'number' && { stock }),
             },
         });
         res.status(200).json(updatedItem);

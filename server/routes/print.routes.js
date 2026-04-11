@@ -1,6 +1,6 @@
 
 import express from 'express';
-import { printInvoice } from '../controllers/print.controller.optimized.js';
+import { printInvoice } from '../controllers/print.controller.js';
 
 const router = express.Router();
 

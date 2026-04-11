@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { api, API_PATHS } from '../../api';
-import { FiPrinter } from 'react-icons/fi';
 import { useRef } from 'react';
 import { format } from 'date-fns';
 import PrintButton from '../PrintButton';
@@ -15,61 +14,6 @@ const PurchaseDetail = ({ purchaseId }) => {
       return response.data;
     }
   });
-
-  // Utility: Convert string to Uint8Array
-  function textToBytes(text) {
-    const encoder = new TextEncoder();
-    return encoder.encode(text);
-  }
-
-  async function handleWebBluetoothPrint() {
-    const escposText = `
-    Patra Bhandar
-    PURCHASE INVOICE
-    Invoice No: ${purchase.invoiceNo}
-    Date: ${new Date(purchase.date).toLocaleDateString('en-IN')}
-    Supplier: ${purchase.supplier?.name || ''}
-
-    ------------------------------
-    ${purchase.items
-        .map(
-          (item, i) =>
-            `${i + 1}. ${item.item.name.split('-')[0].trim()} ${item.quantity} x ${item.unitPrice.toFixed(2)} = ${(item.quantity * item.unitPrice).toFixed(2)}`
-        )
-        .join('\n')}
-    ------------------------------
-    Total: ₹${purchase.totalAmount.toFixed(2)}
-    Paid: ₹${purchase.paidAmount.toFixed(2)}
-    Due: ₹${(purchase.totalAmount - purchase.paidAmount).toFixed(2)}
-    ------------------------------
-    Contact: 7847916571
-    Thank you!
-    \n\n\n
-  `;
-
-    const data = textToBytes(escposText);
-
-    try {
-      const device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: "Printer" }],
-        optionalServices: [0x1101], // Serial Port
-      });
-
-      const server = await device.gatt?.connect();
-      const service = await server?.getPrimaryService(0x1101);
-      const characteristic = await service?.getCharacteristic(0x2A6E); // TX characteristic, may vary
-
-      if (characteristic) {
-        await characteristic.writeValue(data);
-        alert("Printed successfully!");
-      }
-    } catch (err) {
-      console.error("Bluetooth printing error:", err);
-      alert("Failed to print: " + err);
-    }
-  }
-
-
 
   const handleThermalPrint = () => {
     const content = `

@@ -6,6 +6,7 @@ import { api, API_PATHS } from '../../api';
 import * as XLSX from 'xlsx';
 import PaymentForm from './PaymentForm';
 import PaymentDetail from './PaymentDetail';
+import { formatINR } from '../../utils/currency';
 
 const PaymentTable = () => {
     const queryClient = useQueryClient();
@@ -113,7 +114,7 @@ const PaymentTable = () => {
         
         XLSX.utils.sheet_add_aoa(worksheet, [
             ['', '', '', '', '', ''],
-            ['Summary:', '', `Total Paid: $${totalAmount.toFixed(2)}`, '', '', '']
+            ['Summary:', '', `Total Paid: ${formatINR(totalAmount)}`, '', '', '']
         ], { origin: -1 });
         
         XLSX.writeFile(workbook, `${filename}.xlsx`);
@@ -249,14 +250,14 @@ const PaymentTable = () => {
                                             {payment.supplier?.name || 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
-                                            ${payment.amount.toFixed(2)}
+                                            {formatINR(payment.amount)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                                             {payment.method}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             {payment.method === 'account' && payment.account 
-                                                ? `${payment.account.bankName} - {payment.account.accountNumber}` 
+                                                ? `${payment.account.bankName} - ${payment.account.accountNumber}` 
                                                 : 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

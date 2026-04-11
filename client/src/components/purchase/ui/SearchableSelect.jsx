@@ -29,15 +29,15 @@ function SearchableSelect({
 
   return (
     <Combobox value={selected} onChange={onSelect} disabled={disabled}>
-      <div className="relative mt-1">
+      <div className="relative mt-1 w-full min-w-0">
         {label && (
           <Combobox.Label className="block text-sm font-medium text-gray-700 mb-1">
             {label}
           </Combobox.Label>
         )}
-        <div className="relative w-full cursor-default overflow-hidden rounded-md border border-gray-300 bg-white text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-300 sm:text-sm">
+        <div className="relative w-full min-w-0 cursor-default overflow-hidden rounded-md border border-gray-300 bg-white text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-300 sm:text-sm">
           <Combobox.Input
-            className="w-full border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
+            className="w-full min-w-0 border-none py-2 pl-3 pr-10 text-sm leading-5 text-gray-900 focus:ring-0"
             displayValue={displayValue}
             onChange={handleQueryChange}
             placeholder={placeholder}
@@ -57,7 +57,7 @@ function SearchableSelect({
           leaveTo="opacity-0"
           afterLeave={() => setQuery('')} // Optionally clear query on close
         >
-          <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+          <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full min-w-0 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
             {loading && (
               <div className="relative cursor-default select-none py-2 px-4 text-gray-700">
                 Loading...

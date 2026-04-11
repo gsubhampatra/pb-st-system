@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, API_PATHS } from '../../api';
 import { useNavigate } from 'react-router-dom';
@@ -77,7 +77,6 @@ function PurchaseForm() {
   const {
     suppliers: suppliersData,
     isLoading: isLoadingSuppliers,
-    searchTerm: supplierSearchTerm, // Rename to avoid conflict
     setSearchTerm: setSupplierSearchTerm,
   } = useSuppliers();
   const [selectedSupplier, setSelectedSupplier] = useState(null);

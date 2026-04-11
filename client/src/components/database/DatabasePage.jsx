@@ -25,7 +25,6 @@ const DatabasePage = () => {
       showToast("Database cleared successfully", "success");
       setShowClearConfirm(false);
       setConfirmText("");
-      refetch();
     },
     onError: (error) => {
       showToast(
@@ -46,7 +45,6 @@ const DatabasePage = () => {
       showToast("Database reset successfully with seed data", "success");
       setShowResetConfirm(false);
       setConfirmText("");
-      refetch();
     },
     onError: (error) => {
       showToast(

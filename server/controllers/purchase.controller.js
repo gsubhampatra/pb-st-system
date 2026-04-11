@@ -105,7 +105,7 @@ export const createPurchase = async (req, res) => {
         await tx.item.update({
           where: { id: update.itemId },
           data: {
-            currentStock: {
+            stock: {
               increment: update.quantity,
             },
           },

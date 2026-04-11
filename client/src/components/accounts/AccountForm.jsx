@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_PATHS , api } from '../../api';
 
-const AccountForm = ({ account, onSuccess, onCancel }) => {
-    const initialFormState = {
-        bankName: '',
-        accountNumber: '',
-        accountHolder: '',
-        balance: 0
-    };
+const initialFormState = {
+    bankName: '',
+    accountNumber: '',
+    accountHolder: '',
+    balance: 0
+};
 
+const AccountForm = ({ account, onSuccess, onCancel }) => {
     const [formData, setFormData] = useState(initialFormState);
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +35,8 @@ const AccountForm = ({ account, onSuccess, onCancel }) => {
         mutationFn: async (data) => {
             if (account) {
                 // Updating existing account - balance cannot be directly updated
-                const { balance, ...updateData } = data;
+                const updateData = { ...data };
+                delete updateData.balance;
                 return api.put(API_PATHS.accounts.update(account.id), updateData);
             } else {
                 // Creating new account

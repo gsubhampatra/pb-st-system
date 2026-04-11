@@ -7,7 +7,7 @@ import React, { useState, useRef, useEffect } from "react";
  *                                each being an array [odiaSuggestion, originalEnglishWord],
  *                                or [[originalEnglishWord, originalEnglishWord]] on failure.
  */
-export const getTransliterateSuggestions = async (word) => {
+const getTransliterateSuggestions = async (word) => {
   // Ensure word is not empty or just spaces to avoid unnecessary requests
   if (!word || !word.trim()) {
     return Promise.resolve([[word, word]]);

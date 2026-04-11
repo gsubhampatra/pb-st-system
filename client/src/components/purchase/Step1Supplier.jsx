@@ -2,9 +2,8 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, API_PATHS } from '../../api';
-import SearchableSelect from './ui/SearchableSelect';
 import LangInput from '../LangInput';
-import { useSuppliers } from '../../contexts/SupplierContext';
+import SupplierSelect from '../ui/SupplierSelect';
 
 function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
   const queryClient = useQueryClient();
@@ -12,18 +11,6 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
   const [newSupplierName, setNewSupplierName] = useState('');
   const [newSupplierPhone, setNewSupplierPhone] = useState('');
   const [newSupplierAddress, setNewSupplierAddress] = useState('');
-
-  // Use supplier context instead of local state
-  const {
-    suppliers: suppliersData,
-    isLoading: isLoadingSuppliers,
-    searchTerm,
-    setSearchTerm
-  } = useSuppliers();
-
-  const handleSearchChange = (query) => {
-    setSearchTerm(query);
-  };
 
   // --- Create Supplier Mutation ---
   const { mutate: createSupplier, isLoading: isCreatingSupplier, error: createError } = useMutation({
@@ -61,15 +48,11 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
       <h2 className="text-xl font-semibold text-gray-800">Step 1: Select Supplier</h2>
 
       {/* --- Supplier Selection --- */}
-      <SearchableSelect
+      <SupplierSelect
         label="Search and Select Supplier"
-        items={suppliersData || []}
         selected={currentSupplier}
         onSelect={handleSelect}
-        onQueryChange={handleSearchChange}
-        placeholder="Type to search suppliers..."
-        loading={isLoadingSuppliers}
-        displayValue={(supplier) => supplier ? `${supplier.name} (${supplier.phone || 'No phone'})` : ''}
+        showCreateButton={false}
       />
 
       {/* --- Option to Create New --- */}
@@ -80,15 +63,6 @@ function Step1Supplier({ onSupplierSelect, onGoToNext, currentSupplier }) {
       >
         Supplier not found. Create new?
       </button>
-      {!currentSupplier && !searchTerm && (
-        <button
-          type="button"
-          onClick={() => setShowCreateForm(true)}
-          className="mt-2 text-sm text-indigo-600 hover:text-indigo-800"
-        >
-          Or Create a New Supplier
-        </button>
-      )}
 
 
       {/* --- Create Supplier Form (Conditional) --- */}

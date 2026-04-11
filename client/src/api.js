@@ -91,7 +91,7 @@ export const API_PATHS = {
     getSummary: "/reports/summary",
   },
   print: {
-    printInvoice: `/print/purchase`,
+    printInvoice: `/print/invoice`,
   },
   database: {
     stats: `/database/stats`,

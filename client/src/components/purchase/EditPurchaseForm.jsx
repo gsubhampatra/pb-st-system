@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { api, API_PATHS } from '../../api';
 import { format } from 'date-fns';
+import SupplierSelect from '../ui/SupplierSelect';
+import { formatINR } from '../../utils/currency';
 
 const EditPurchaseForm = ({ purchase, onSuccess }) => {
   const queryClient = useQueryClient();
@@ -14,14 +16,7 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
     status: 'recorded'
   });
 
-  // Fetch suppliers and items for dropdowns
-  const { data: suppliers = [] } = useQuery({
-    queryKey: ['suppliers'],
-    queryFn: async () => {
-      const response = await api.get(API_PATHS.suppliers.getAll);
-      return Array.isArray(response.data) ? response.data : response.data?.suppliers || [];
-    }
-  });
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
 
   const { data: items = [] } = useQuery({
     queryKey: ['items'],
@@ -38,6 +33,7 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
       api.get(API_PATHS.purchases.getById(purchase.id))
         .then(response => {
           const purchaseData = response.data;
+          setSelectedSupplier(purchaseData.supplier || null);
           setFormData({
             supplierId: purchaseData.supplierId,
             date: format(new Date(purchaseData.date), 'yyyy-MM-dd'),
@@ -152,24 +148,14 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="supplierId" className="block text-sm font-medium text-gray-700">
-            Supplier *
-          </label>
-          <select
-            id="supplierId"
-            name="supplierId"
-            value={formData.supplierId}
-            onChange={handleChange}
-            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            required
-          >
-            <option value="">Select Supplier</option>
-            {suppliers.map(supplier => (
-              <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-            ))}
-          </select>
-        </div>
+        <SupplierSelect
+          label="Supplier *"
+          selected={selectedSupplier}
+          onSelect={(supplier) => {
+            setSelectedSupplier(supplier);
+            setFormData(prev => ({ ...prev, supplierId: supplier?.id || '' }));
+          }}
+        />
 
         <div>
           <label htmlFor="date" className="block text-sm font-medium text-gray-700">
@@ -193,8 +179,8 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
         </label>
         <div className="space-y-4">
           {formData.items.map((item, index) => (
-            <div key={index} className="grid grid-cols-12 gap-2 items-center">
-              <div className="col-span-5">
+            <div key={index} className="grid grid-cols-1 gap-2 items-center md:grid-cols-12 md:gap-2">
+              <div className="md:col-span-5">
                 <select
                   value={item.itemId}
                   onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
@@ -209,7 +195,7 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
                   ))}
                 </select>
               </div>
-              <div className="col-span-2">
+              <div className="md:col-span-2">
                 <input
                   type="number"
                   min="1"
@@ -221,7 +207,7 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
                   required
                 />
               </div>
-              <div className="col-span-3">
+              <div className="md:col-span-3">
                 <input
                   type="number"
                   min="0"
@@ -233,12 +219,12 @@ const EditPurchaseForm = ({ purchase, onSuccess }) => {
                   required
                 />
               </div>
-              <div className="col-span-1 text-right">
+              <div className="md:col-span-1 text-right">
                 <span className="font-medium">
-                  ${(item.quantity * item.unitPrice).toFixed(2)}
+                  {formatINR(item.quantity * item.unitPrice)}
                 </span>
               </div>
-              <div className="col-span-1">
+              <div className="md:col-span-1">
                 <button
                   type="button"
                   onClick={() => removeItem(index)}

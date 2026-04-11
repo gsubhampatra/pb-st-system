@@ -21,58 +21,61 @@ export const createReceipt = async (req, res) => {
     }
 
     try {
-        // --- Use Prisma Transaction (important for updating account balance) ---
-        const newReceipt = await prisma.$transaction(async (tx) => {
+        const transactionOptions = {
+            maxWait: 10000,
+            timeout: 15000,
+        };
 
-            // 1. Validate Customer exists
+        // Keep the transaction short: only the balance update and receipt write run inside it.
+        const newReceipt = await prisma.$transaction(async (tx) => {
             const customer = await tx.customer.findUnique({
                 where: { id: customerId },
-                select: { id: true }
+                select: { id: true },
             });
+
             if (!customer) {
                 throw new Error(`Customer with ID ${customerId} not found.`);
             }
 
             let validatedAccountId = null;
-            // 2. If method is 'account', validate Account and update balance
+
             if (method === 'account') {
                 const account = await tx.account.findUnique({
-                    where: { id: accountId }
+                    where: { id: accountId },
+                    select: { id: true },
                 });
+
                 if (!account) {
                     throw new Error(`Account with ID ${accountId} not found.`);
                 }
 
-                // Increment account balance (receiving money)
                 await tx.account.update({
                     where: { id: accountId },
                     data: {
                         balance: {
-                            increment: amount, // Increase balance
+                            increment: amount,
                         },
                     },
                 });
-                validatedAccountId = accountId; // Store validated ID
+
+                validatedAccountId = accountId;
             }
 
-            // 3. Create the Receipt record
-            const receipt = await tx.receipt.create({
+            return tx.receipt.create({
                 data: {
-                    customerId: customerId,
-                    amount: amount,
-                    method: method,
-                    accountId: validatedAccountId, // Use null if cash, validated ID if account
+                    customerId,
+                    amount,
+                    method,
+                    accountId: validatedAccountId,
                     date: new Date(date),
-                    note: note, // Optional
+                    note,
                 },
-                include: { // Include related data in the response
+                include: {
                     customer: { select: { name: true } },
-                    account: { select: { bankName: true, accountNumber: true } } // Include if account was used
-                }
+                    account: { select: { bankName: true, accountNumber: true } },
+                },
             });
-
-            return receipt; // Return the created receipt from the transaction
-        }); // End of Prisma Transaction
+        }, transactionOptions);
 
         res.status(201).json(newReceipt);
 

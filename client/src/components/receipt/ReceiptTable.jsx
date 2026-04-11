@@ -6,6 +6,7 @@ import { api, API_PATHS } from '../../api';
 import * as XLSX from 'xlsx';
 import ReceiptForm from './ReceiptForm';
 import ReceiptDetail from './ReceiptDetail';
+import { formatINR } from '../../utils/currency';
 
 const ReceiptTable = () => {
   const queryClient = useQueryClient();
@@ -74,7 +75,7 @@ const ReceiptTable = () => {
 
   // Handle delete receipt
   const handleDelete = (receipt) => {
-    if (window.confirm(`Are you sure you want to delete this receipt of $${receipt.amount.toFixed(2)} from ${receipt.customer?.name}?`)) {
+    if (window.confirm(`Are you sure you want to delete this receipt of ${formatINR(receipt.amount)} from ${receipt.customer?.name}?`)) {
       deleteReceipt.mutate(receipt.id);
     }
   };
@@ -101,7 +102,7 @@ const ReceiptTable = () => {
     const exportData = receiptsData.data.map(receipt => ({
       'Date': format(new Date(receipt.date), 'MM/dd/yyyy'),
       'Customer': receipt.customer?.name || 'N/A',
-      'Amount': receipt.amount.toFixed(2),
+      'Amount': formatINR(receipt.amount),
       'Method': receipt.method.toUpperCase(),
       'Account': receipt.method === 'account' && receipt.account 
         ? `${receipt.account.bankName} - ${receipt.account.accountNumber}` 
@@ -270,7 +271,7 @@ const ReceiptTable = () => {
                         {receipt.customer?.name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                        ${receipt.amount.toFixed(2)}
+                        {formatINR(receipt.amount)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                         {receipt.method}

@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import ExcelJS from "exceljs";
+import prisma from "../prisma/prisma.js";
 
-const prisma = new PrismaClient();
 export const downloadReport = async (req, res) => {
   const { type, filter, date, month, year } = req.query;
 
@@ -115,8 +114,8 @@ export const downloadReport = async (req, res) => {
           worksheet.addRow({
             item: itemData?.name || "Unknown",
             quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.quantity * item.price,
+            unitPrice: item.unitPrice,
+            totalPrice: item.quantity * item.unitPrice,
           });
         }
 
@@ -195,8 +194,10 @@ export const downloadReport = async (req, res) => {
   // Save report download history
   await prisma.reportDownload.create({
     data: {
-      type,
-      date: new Date(),
+      reportType: type,
+      startDate: startOfDay,
+      endDate: endOfDay,
+      downloadedAt: new Date(),
     },
   });
 
@@ -212,7 +213,7 @@ export const downloadReport = async (req, res) => {
 export const getDownloadHistory = async (req, res) => {
   try {
     const history = await prisma.reportDownload.findMany({
-      orderBy: { date: "desc" },
+      orderBy: { downloadedAt: "desc" },
       take: 100,
     });
     res.json(history);

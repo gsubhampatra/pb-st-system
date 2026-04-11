@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FiEdit, FiTrash2, FiEye, FiPrinter, FiPlus, FiDownload } from 'react-icons/fi';
 import { useState } from 'react';
-import { api, API_PATHS, addQueryParams } from '../../api';
+import { api, API_PATHS } from '../../api';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import SaleDetail from './SaleDetail';
@@ -11,6 +11,7 @@ const SalesTable = () => {
     const queryClient = useQueryClient();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedSaleId, setSelectedSaleId] = useState(null);
+    const [selectedSale, setSelectedSale] = useState(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [filters, setFilters] = useState({
         customerNameOrPhone: '',
